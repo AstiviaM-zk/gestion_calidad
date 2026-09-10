@@ -1,54 +1,47 @@
-# QMS Backend & Auth Portal
+# Sistema de Gestión de Calidad (QMS)
 
-Sistema de Gestión de Calidad (QMS) - Backend en Express y Portal de Inicio de Sesión con **Google OAuth 2.0**.
+Aplicación web desacoplada para la administración de documentos de calidad ISO 9001, control de versiones, usuarios autenticados mediante Google OAuth2 y matriz de Roles y Permisos.
 
----
-
-## 🚀 Comandos Rápidos para Iniciar el Servidor
-
-Abre la terminal en la raíz del proyecto (`qms-backend`) y ejecuta alguno de los siguientes comandos:
-
-### Modo Desarrollo (con reinicio automático al editar archivos):
-```bash
-npm run dev
-```
-
-### Modo Producción:
-```bash
-npm start
-```
-
-Una vez iniciado, abre tu navegador en:  
- **[http://localhost:3000](http://localhost:3000)**
-
----
-
-## ⚙️ Configuración del Archivo `.env`
-
-El proyecto utiliza variables de entorno definidas en el archivo `.env`. Puedes copiar el archivo de ejemplo para comenzar:
-
-```bash
-cp .env.example .env
-```
-
----
-
-## 📂 Estructura del Proyecto
+## 📁 Estructura del Proyecto
 
 ```text
-qms-backend/
-├── index.js              # Punto de entrada principal de Express
-├── package.json          # Configuración de scripts y dependencias
-├── .env                  # Variables de entorno locales
-├── .env.example          # Plantilla de variables de entorno
-├── README.md             # Documentación del proyecto
-├── src/
-│   └── routes/
-│       └── auth.js       # Router de autenticación (Google OAuth + JWT)
-└── public/               # Interfaz Frontend (Glassmorphic Web UI)
-    ├── index.html        # Página HTML5 principal
-    ├── css/
-    │   └── styles.css    # Estilos CSS nativos (Dark glassmorphism)
-    └── js/
-        └── app.js        # Lógica del cliente Javascript (Google GIS SDK)
+gestion_calidad/
+├── backend/                  # Servidor API Express + Node.js
+│   ├── data/                 # Persistencia JSON (users.json)
+│   ├── src/                  # Controlador de Rutas y Servicios
+│   ├── .env                  # Variables de entorno
+│   ├── index.js              # Punto de entrada del Backend
+│   └── package.json
+│
+├── frontend/                 # Aplicación SPA Vue 3 + Vite
+│   ├── public/               # Archivos estáticos
+│   ├── src/
+│   │   ├── assets/           # Estilos CSS institucionales
+│   │   ├── components/       # Componentes reutilizables (DocumentManager, UserList, RoleManager, etc.)
+│   │   ├── views/            # Vistas principales (LoginView, DashboardView)
+│   │   ├── App.vue           # Componente raíz
+│   │   └── main.js           # Entrada de Vue 3
+│   ├── index.html            # Plantilla HTML Vite
+│   ├── vite.config.js        # Configuración de Vite con Proxy /api
+│   └── package.json
+│
+├── package.json              # Orquestador con concurrently (npm run dev)
+└── README.md
 ```
+
+## 🚀 Instalación y Ejecución
+
+1. **Instalar dependencias**:
+   ```bash
+   npm install
+   cd backend && npm install
+   cd ../frontend && npm install
+   ```
+
+2. **Ejecutar en modo Desarrollo (Backend + Frontend)**:
+   ```bash
+   # En la raíz del proyecto:
+   npm run dev
+   ```
+   - **Frontend (Vite)**: http://localhost:5173/
+   - **Backend (API)**: http://localhost:3000/

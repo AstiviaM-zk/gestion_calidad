@@ -138,10 +138,10 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import DocumentManager from './DocumentManager.vue';
-import UserList from './UserList.vue';
-import RoleManager from './RoleManager.vue';
-import UserProfile from './UserProfile.vue';
+import DocumentManager from '../components/DocumentManager.vue';
+import UserList from '../components/UserList.vue';
+import RoleManager from '../components/RoleManager.vue';
+import UserProfile from '../components/UserProfile.vue';
 
 const props = defineProps({
   user: { type: Object, required: true },
