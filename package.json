@@ -1,7 +1,7 @@
 {
-  "name": "qms-backend",
+  "name": "gestion_calidad",
   "version": "1.0.0",
-  "description": "",
+  "description": "Sistema de Gestion de Calidad (QMS)",
   "keywords": [],
   "license": "ISC",
   "author": "",
@@ -9,8 +9,11 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "node --watch index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "concurrently \"node index.js\" \"vite\"",
+    "dev:backend": "node index.js",
+    "dev:frontend": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
     "cors": "^2.8.6",
@@ -20,6 +23,12 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.3.0",
     "pdf-lib": "^1.17.1",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "concurrently": "^9.1.2",
+    "vite": "^6.2.0"
   }
 }
