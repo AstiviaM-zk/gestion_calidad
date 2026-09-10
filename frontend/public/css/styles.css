@@ -1,6 +1,6 @@
-/* ==========================================================================
-   QMS Institutional Design System (Sistema de Gestión de Calidad)
-   Paleta Institucional: Layout 100vh sin scroll de página + Scroll interno en tabla
+﻿/* ==========================================================================
+   QMS Institutional Design System (Sistema de GestiÃ³n de Calidad)
+   Paleta Institucional: Layout 100vh sin scroll de pÃ¡gina + Scroll interno en tabla
    ========================================================================== */
 
 :root {
@@ -253,12 +253,13 @@ html, body {
   width: 100%;
   padding: 16px 24px;
   overflow: hidden;
-  height: calc(100vh - 70px);
+  height: 100%;
 }
 
 .app-layout-wrapper.authenticated-layout {
   align-items: flex-start;
   padding: 12px 24px 16px 24px;
+  height: calc(100vh - 70px);
 }
 
 /* Login Wrapper */
@@ -445,7 +446,7 @@ html, body {
 }
 
 /* ==========================================================================
-   ADMIN DASHBOARD LAYOUT (100vh - SIN SCROLL DE PÁGINA)
+   ADMIN DASHBOARD LAYOUT (100vh - SIN SCROLL DE PÃGINA)
    ========================================================================== */
 
 .admin-wrapper {
@@ -801,7 +802,7 @@ html, body {
   max-height: 100%;
 }
 
-/* Personalización elegante de la barra de scroll dentro de la tabla */
+/* PersonalizaciÃ³n elegante de la barra de scroll dentro de la tabla */
 .table-container::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -1327,3 +1328,4 @@ html, body {
     padding: 12px 18px;
   }
 }
+
