@@ -23,6 +23,7 @@ yarn-debug.log*
 uploads/
 temp/
 tmp/
+backend/data/users.json
 
 # Archivos de compilación / build
 dist/
@@ -38,3 +39,5 @@ Desktop.ini
 .vscode/
 .idea/
 .gemini/
+backend/data/users.json
+backend/data/users.json

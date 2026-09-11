@@ -1,6 +1,6 @@
 <template>
   <div class="admin-layout">
-    <aside class="admin-sidebar glass-card">
+    <aside class="admin-sidebar glass-card desktop-only-sidebar">
       <div class="sidebar-user">
         <img :src="userAvatar" :alt="user.name" class="sidebar-avatar" @error="onAvatarError">
         <div class="sidebar-user-info">
@@ -11,16 +11,16 @@
 
       <nav class="sidebar-nav">
         <button 
-          :class="['nav-item', { active: activeTab === 'overview' }]"
-          @click="activeTab = 'overview'"
+          :class="['nav-item', { active: currentTab === 'overview' }]"
+          @click="setTab('overview')"
         >
           <i class="fa-solid fa-chart-pie"></i>
           <span>Resumen Dashboard</span>
         </button>
 
         <button 
-          :class="['nav-item', { active: activeTab === 'documents' }]"
-          @click="activeTab = 'documents'"
+          :class="['nav-item', { active: currentTab === 'documents' }]"
+          @click="setTab('documents')"
         >
           <i class="fa-solid fa-folder-closed"></i>
           <span>Gestor de Documentos</span>
@@ -28,8 +28,8 @@
         </button>
 
         <button 
-          :class="['nav-item', { active: activeTab === 'users' }]"
-          @click="activeTab = 'users'"
+          :class="['nav-item', { active: currentTab === 'users' }]"
+          @click="setTab('users')"
         >
           <i class="fa-solid fa-users"></i>
           <span>Usuarios</span>
@@ -37,8 +37,8 @@
         </button>
 
         <button 
-          :class="['nav-item', { active: activeTab === 'roles' }]"
-          @click="activeTab = 'roles'"
+          :class="['nav-item', { active: currentTab === 'roles' }]"
+          @click="setTab('roles')"
         >
           <i class="fa-solid fa-user-gear"></i>
           <span>Roles y Permisos</span>
@@ -46,8 +46,8 @@
         </button>
 
         <button 
-          :class="['nav-item', { active: activeTab === 'profile' }]"
-          @click="activeTab = 'profile'"
+          :class="['nav-item', { active: currentTab === 'profile' }]"
+          @click="setTab('profile')"
         >
           <i class="fa-solid fa-circle-user"></i>
           <span>Mi Perfil & Token</span>
@@ -62,7 +62,7 @@
     </aside>
 
     <main class="admin-main">
-      <div v-if="activeTab === 'overview'" class="dashboard-content">
+      <div v-if="currentTab === 'overview'" class="dashboard-content">
         <div class="page-title-box">
           <h2 class="page-title">Panel de Control de Calidad (QMS)</h2>
           <p class="page-subtitle">Bienvenido de nuevo, {{ user.givenName || user.name }}. Aquí está el estado actual del sistema.</p>
@@ -117,19 +117,19 @@
         <DocumentManager :documents="documents" />
       </div>
 
-      <div v-else-if="activeTab === 'documents'">
+      <div v-else-if="currentTab === 'documents'">
         <DocumentManager :documents="documents" />
       </div>
 
-      <div v-else-if="activeTab === 'users'">
+      <div v-else-if="currentTab === 'users'">
         <UserList :users="users" :roles="roles" @user-updated="emit('reload-data')" />
       </div>
 
-      <div v-else-if="activeTab === 'roles'">
+      <div v-else-if="currentTab === 'roles'">
         <RoleManager :roles="roles" :users="users" @role-created="emit('reload-data')" />
       </div>
 
-      <div v-else-if="activeTab === 'profile'" class="profile-tab-wrapper">
+      <div v-else-if="currentTab === 'profile'" class="profile-tab-wrapper">
         <UserProfile :user="user" :token="token" @logout="emit('logout')" />
       </div>
     </main>
@@ -137,7 +137,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import DocumentManager from '../components/DocumentManager.vue';
 import UserList from '../components/UserList.vue';
 import RoleManager from '../components/RoleManager.vue';
@@ -149,11 +149,21 @@ const props = defineProps({
   stats: { type: Object, default: () => ({}) },
   documents: { type: Array, default: () => [] },
   users: { type: Array, default: () => [] },
-  roles: { type: Array, default: () => [] }
+  roles: { type: Array, default: () => [] },
+  activeTab: { type: String, default: 'overview' }
 });
 
-const emit = defineEmits(['logout', 'reload-data']);
-const activeTab = ref('overview');
+const emit = defineEmits(['logout', 'reload-data', 'change-tab']);
+const currentTab = ref(props.activeTab);
+
+watch(() => props.activeTab, (newTab) => {
+  if (newTab) currentTab.value = newTab;
+});
+
+function setTab(tab) {
+  currentTab.value = tab;
+  emit('change-tab', tab);
+}
 
 const userAvatar = computed(() => {
   return props.user?.picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(props.user?.name || 'User') + '&background=1e3a8a&color=fff';

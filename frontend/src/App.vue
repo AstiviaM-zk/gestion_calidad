@@ -16,12 +16,23 @@
     <AppLayout 
       v-else 
       :user="user" 
+      :active-tab="activeTab"
+      :documents-count="documents.length"
+      :users-count="users.length"
+      :roles-count="roles.length"
       @logout="handleLogout"
+      @select-tab="activeTab = $event"
     >
       <DashboardView 
         :user="user" 
         :token="token" 
-        @logout="handleLogout" 
+        :active-tab="activeTab"
+        :documents="documents"
+        :users="users"
+        :roles="roles"
+        @change-tab="activeTab = $event"
+        @logout="handleLogout"
+        @reload-data="fetchData"
       />
     </AppLayout>
   </div>
@@ -41,6 +52,11 @@ const googleClientId = ref('');
 const statusMessage = ref('');
 const statusType = ref('info');
 const isLoading = ref(false);
+const activeTab = ref('overview');
+
+const documents = ref([]);
+const users = ref([]);
+const roles = ref([]);
 
 onMounted(async () => {
   // Restore session from sessionStorage
@@ -51,6 +67,7 @@ onMounted(async () => {
       token.value = savedToken;
       user.value = JSON.parse(savedUser);
       isAuthenticated.value = true;
+      fetchData();
     } catch (e) {
       sessionStorage.removeItem('qms_token');
       sessionStorage.removeItem('qms_user');
@@ -68,6 +85,21 @@ onMounted(async () => {
     console.error('Error cargando configuración de autenticación:', err);
   }
 });
+
+async function fetchData() {
+  try {
+    const [docsRes, usersRes, rolesRes] = await Promise.all([
+      fetch('/api/documents').then(r => r.json()),
+      fetch('/api/users').then(r => r.json()),
+      fetch('/api/roles').then(r => r.json())
+    ]);
+    if (docsRes.success) documents.value = docsRes.documents;
+    if (usersRes.success) users.value = usersRes.users;
+    if (rolesRes.success) roles.value = rolesRes.roles;
+  } catch (err) {
+    console.error('Error cargando datos del sistema:', err);
+  }
+}
 
 async function handleGoogleSuccess(credential) {
   isLoading.value = true;
@@ -89,6 +121,7 @@ async function handleGoogleSuccess(credential) {
       sessionStorage.setItem('qms_token', data.token);
       sessionStorage.setItem('qms_user', JSON.stringify(data.user));
       statusMessage.value = '';
+      fetchData();
     } else {
       statusMessage.value = data.message || 'Error durante la autenticación de Google';
       statusType.value = 'error';
@@ -120,6 +153,7 @@ function handleDemoLogin() {
   isAuthenticated.value = true;
   sessionStorage.setItem('qms_token', demoToken);
   sessionStorage.setItem('qms_user', JSON.stringify(demoUser));
+  fetchData();
 }
 
 function handleLogout() {

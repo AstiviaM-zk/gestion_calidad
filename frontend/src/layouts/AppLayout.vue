@@ -3,7 +3,12 @@
     <header class="app-layout-header">
       <AppNavbar 
         :user="user" 
+        :active-tab="activeTab"
+        :documents-count="documentsCount"
+        :users-count="usersCount"
+        :roles-count="rolesCount"
         @logout="$emit('logout')" 
+        @select-tab="$emit('select-tab', $event)"
       />
     </header>
 
@@ -17,10 +22,14 @@
 import AppNavbar from '../components/AppNavbar.vue';
 
 defineProps({
-  user: { type: Object, default: () => ({}) }
+  user: { type: Object, default: () => ({}) },
+  activeTab: { type: String, default: 'overview' },
+  documentsCount: { type: Number, default: 0 },
+  usersCount: { type: Number, default: 0 },
+  rolesCount: { type: Number, default: 0 }
 });
 
-defineEmits(['logout']);
+defineEmits(['logout', 'select-tab']);
 </script>
 
 <style scoped>

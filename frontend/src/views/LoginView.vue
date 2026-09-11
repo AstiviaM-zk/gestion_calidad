@@ -27,7 +27,8 @@
           <i class="fa-solid fa-flask"></i> Demostración (Modo Pruebas)
         </button>
       </div>
-
+       
+      <!-- Si el archivo env esta mal o no esta configurado correctamente, se muestra este mensaje -->
       <div v-if="isDefaultClientId" class="alert alert-warning shadow-sm">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <div>
@@ -108,8 +109,8 @@ function handleGoogleResponse(response) {
 }
 </script>
 
-<style scoped>
+<!-- <style scoped>
 .login-card {
   width: 100%;
 }
-</style>
+</style> -->

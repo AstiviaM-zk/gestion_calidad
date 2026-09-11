@@ -45,7 +45,7 @@
               <div class="nav-logo">
                 <i class="fa-solid fa-shield-halved"></i>
               </div>
-              <span class="nav-title text-sm">Gestión de Calidad</span>
+              <span class="nav-title text-sm">Menú de Calidad (QMS)</span>
             </div>
             <button type="button" class="icon-btn" @click="isMobileMenuOpen = false">
               <i class="fa-solid fa-xmark"></i>
@@ -60,6 +60,54 @@
                 <span class="drawer-email">{{ user.email }}</span>
               </div>
             </div>
+
+            <!-- Mobile Navigation Menu -->
+            <nav class="drawer-nav">
+              <span class="drawer-section-title">Navegación del Sistema</span>
+              
+              <button 
+                :class="['drawer-nav-item', { active: activeTab === 'overview' }]"
+                @click="selectTab('overview')"
+              >
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>Resumen Dashboard</span>
+              </button>
+
+              <button 
+                :class="['drawer-nav-item', { active: activeTab === 'documents' }]"
+                @click="selectTab('documents')"
+              >
+                <i class="fa-solid fa-folder-closed"></i>
+                <span>Gestor de Documentos</span>
+                <span class="badge-count" v-if="documentsCount">{{ documentsCount }}</span>
+              </button>
+
+              <button 
+                :class="['drawer-nav-item', { active: activeTab === 'users' }]"
+                @click="selectTab('users')"
+              >
+                <i class="fa-solid fa-users"></i>
+                <span>Usuarios</span>
+                <span class="badge-count light" v-if="usersCount">{{ usersCount }}</span>
+              </button>
+
+              <button 
+                :class="['drawer-nav-item', { active: activeTab === 'roles' }]"
+                @click="selectTab('roles')"
+              >
+                <i class="fa-solid fa-user-gear"></i>
+                <span>Roles y Permisos</span>
+                <span class="badge-count light" v-if="rolesCount">{{ rolesCount }}</span>
+              </button>
+
+              <button 
+                :class="['drawer-nav-item', { active: activeTab === 'profile' }]"
+                @click="selectTab('profile')"
+              >
+                <i class="fa-solid fa-circle-user"></i>
+                <span>Mi Perfil & Token</span>
+              </button>
+            </nav>
 
             <div class="drawer-status-box">
               <span class="dot green"></span>
@@ -83,10 +131,14 @@ import { ref, computed } from "vue";
 
 const props = defineProps({
   isAuthenticated: { type: Boolean, default: false },
-  user: { type: Object, default: () => null }
+  user: { type: Object, default: () => null },
+  activeTab: { type: String, default: 'overview' },
+  documentsCount: { type: Number, default: 0 },
+  usersCount: { type: Number, default: 0 },
+  rolesCount: { type: Number, default: 0 }
 });
 
-const emit = defineEmits(["logout"]);
+const emit = defineEmits(["logout", "select-tab"]);
 const isMobileMenuOpen = ref(false);
 
 const userAvatar = computed(() => {
@@ -95,6 +147,11 @@ const userAvatar = computed(() => {
 
 function onAvatarError(e) {
   e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(props.user?.name || "User") + "&background=1e3a8a&color=fff";
+}
+
+function selectTab(tabKey) {
+  emit("select-tab", tabKey);
+  isMobileMenuOpen.value = false;
 }
 
 function handleLogout() {
