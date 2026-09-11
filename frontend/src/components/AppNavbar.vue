@@ -10,8 +10,9 @@
       </div>
     </div>
 
-    <div class="nav-actions">
-      <div v-if="isAuthenticated && user" class="user-chip shadow-sm">
+    <!-- Desktop Actions -->
+    <div class="nav-actions desktop-only">
+      <div v-if="user" class="user-chip shadow-sm">
         <img :src="userAvatar" :alt="user.name" class="chip-avatar" @error="onAvatarError">
         <span class="chip-name">{{ user.givenName || user.name }}</span>
       </div>
@@ -20,16 +21,73 @@
         <span class="status-text">Sistema Operativo</span>
       </div>
     </div>
+
+    <!-- Mobile Hamburger Toggle Button -->
+    <button 
+      type="button"
+      class="mobile-toggle-btn mobile-only icon-btn" 
+      @click="isMobileMenuOpen = !isMobileMenuOpen"
+      aria-label="Menú Móvil"
+    >
+      <i :class="isMobileMenuOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'"></i>
+    </button>
+
+    <!-- Mobile Drawer Off-Canvas Overlay -->
+    <Teleport to="body">
+      <div 
+        v-if="isMobileMenuOpen" 
+        class="mobile-drawer-overlay" 
+        @click.self="isMobileMenuOpen = false"
+      >
+        <aside class="mobile-drawer-panel glass-card shadow-lg">
+          <div class="drawer-header">
+            <div class="nav-brand">
+              <div class="nav-logo">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <span class="nav-title text-sm">Gestión de Calidad</span>
+            </div>
+            <button type="button" class="icon-btn" @click="isMobileMenuOpen = false">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <div class="drawer-body">
+            <div v-if="user" class="drawer-user-box">
+              <img :src="userAvatar" :alt="user.name" class="drawer-avatar" @error="onAvatarError">
+              <div class="drawer-user-info">
+                <span class="drawer-name">{{ user.name }}</span>
+                <span class="drawer-email">{{ user.email }}</span>
+              </div>
+            </div>
+
+            <div class="drawer-status-box">
+              <span class="dot green"></span>
+              <span>Backend Activo • Puerto 3001</span>
+            </div>
+          </div>
+
+          <div class="drawer-footer">
+            <button type="button" class="btn btn-secondary btn-full" @click="handleLogout">
+              <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+            </button>
+          </div>
+        </aside>
+      </div>
+    </Teleport>
   </header>
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { ref, computed } from "vue";
 
 const props = defineProps({
   isAuthenticated: { type: Boolean, default: false },
   user: { type: Object, default: () => null }
 });
+
+const emit = defineEmits(["logout"]);
+const isMobileMenuOpen = ref(false);
 
 const userAvatar = computed(() => {
   return props.user?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(props.user?.name || "User") + "&background=1e3a8a&color=fff";
@@ -37,5 +95,10 @@ const userAvatar = computed(() => {
 
 function onAvatarError(e) {
   e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(props.user?.name || "User") + "&background=1e3a8a&color=fff";
+}
+
+function handleLogout() {
+  isMobileMenuOpen.value = false;
+  emit("logout");
 }
 </script>

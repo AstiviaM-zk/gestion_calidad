@@ -1,54 +1,50 @@
 <template>
-  <div class="login-view-container">
-    <div class="login-wrapper">
-      <section class="card glass-card shadow-lg">
-        <div class="brand-header">
-          <div class="brand-logo shadow-gradient">
-            <i class="fa-solid fa-shield-halved logo-icon"></i>
-          </div>
-          <h1 class="brand-title">Sistema de Gestión de Calidad</h1>
-          <p class="brand-subtitle">Portal de Control Documental Institucional (QMS)</p>
-        </div>
-
-        <div class="divider">
-          <span>Acceso Institucional</span>
-        </div>
-
-        <div class="auth-box">
-          <div class="google-btn-container">
-            <div v-if="sdkLoading" class="skeleton-loader">
-              <div class="spinner"></div>
-              <span>Cargando autenticación de Google...</span>
-            </div>
-
-            <div id="google-signin-btn-vue" v-show="!sdkLoading"></div>
-          </div>
-
-          <div class="demo-section">
-            <button type="button" class="btn btn-secondary btn-full" @click="emit('demo-login')">
-              <i class="fa-solid fa-flask"></i> Demostración (Modo Pruebas)
-            </button>
-          </div>
-
-          <div v-if="isDefaultClientId" class="alert alert-warning shadow-sm">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-            <div>
-              <strong>Configuración requerida:</strong>
-              <p>Configura tu <code>GOOGLE_CLIENT_ID</code> en el archivo <code>backend/.env</code> para habilitar la autenticación real con Google Cloud.</p>
-            </div>
-          </div>
-
-          <div v-if="statusMessage" :class="['status-msg', statusType, 'shadow-sm']">
-            <i :class="statusIcon"></i> {{ statusMessage }}
-          </div>
-        </div>
-
-        <footer class="card-footer">
-          <p><i class="fa-solid fa-lock"></i> Autenticación cifrada mediante OAuth 2.0 & JWT</p>
-        </footer>
-      </section>
+  <section class="card glass-card shadow-lg login-card">
+    <div class="brand-header">
+      <div class="brand-logo shadow-gradient">
+        <i class="fa-solid fa-shield-halved logo-icon"></i>
+      </div>
+      <h1 class="brand-title">Sistema de Gestión de Calidad</h1>
+      <p class="brand-subtitle">Portal de Control Documental Institucional (QMS)</p>
     </div>
-  </div>
+
+    <div class="divider">
+      <span>Acceso Institucional</span>
+    </div>
+
+    <div class="auth-box">
+      <div class="google-btn-container">
+        <div v-if="sdkLoading" class="skeleton-loader">
+          <div class="spinner"></div>
+          <span>Cargando autenticación de Google...</span>
+        </div>
+
+        <div id="google-signin-btn-vue" v-show="!sdkLoading"></div>
+      </div>
+
+      <div class="demo-section">
+        <button type="button" class="btn btn-secondary btn-full" @click="emit('demo-login')">
+          <i class="fa-solid fa-flask"></i> Demostración (Modo Pruebas)
+        </button>
+      </div>
+
+      <div v-if="isDefaultClientId" class="alert alert-warning shadow-sm">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>
+          <strong>Configuración requerida:</strong>
+          <p>Configura tu <code>GOOGLE_CLIENT_ID</code> en el archivo <code>backend/.env</code> para habilitar la autenticación real con Google Cloud.</p>
+        </div>
+      </div>
+
+      <div v-if="statusMessage" :class="['status-msg', statusType, 'shadow-sm']">
+        <i :class="statusIcon"></i> {{ statusMessage }}
+      </div>
+    </div>
+
+    <footer class="card-footer">
+      <p><i class="fa-solid fa-lock"></i> Autenticación cifrada mediante OAuth 2.0 & JWT</p>
+    </footer>
+  </section>
 </template>
 
 <script setup>
@@ -111,3 +107,9 @@ function handleGoogleResponse(response) {
   }
 }
 </script>
+
+<style scoped>
+.login-card {
+  width: 100%;
+}
+</style>

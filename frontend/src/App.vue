@@ -1,14 +1,8 @@
 <template>
-  <div class="app-container">
-    <AppNavbar 
-      v-if="isAuthenticated" 
-      :user="user" 
-      @logout="handleLogout" 
-    />
-
-    <main class="main-content">
+  <div class="app-root">
+    <!-- Layout de Autenticación (Público) -->
+    <AuthLayout v-if="!isAuthenticated">
       <LoginView 
-        v-if="!isAuthenticated" 
         :google-client-id="googleClientId"
         :status-message="statusMessage"
         :status-type="statusType"
@@ -16,20 +10,27 @@
         @google-success="handleGoogleSuccess"
         @demo-login="handleDemoLogin"
       />
+    </AuthLayout>
 
+    <!-- Layout del Sistema Interno (Privado) -->
+    <AppLayout 
+      v-else 
+      :user="user" 
+      @logout="handleLogout"
+    >
       <DashboardView 
-        v-else 
         :user="user" 
         :token="token" 
         @logout="handleLogout" 
       />
-    </main>
+    </AppLayout>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import AppNavbar from './components/AppNavbar.vue';
+import AuthLayout from './layouts/AuthLayout.vue';
+import AppLayout from './layouts/AppLayout.vue';
 import LoginView from './views/LoginView.vue';
 import DashboardView from './views/DashboardView.vue';
 
@@ -62,7 +63,6 @@ onMounted(async () => {
     const data = await res.json();
     if (data && data.googleClientId) {
       googleClientId.value = data.googleClientId;
-      console.log('✓ Google Client ID cargado:', data.googleClientId);
     }
   } catch (err) {
     console.error('Error cargando configuración de autenticación:', err);
