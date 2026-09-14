@@ -50,6 +50,8 @@ defineEmits(['logout', 'select-tab']);
   display: flex;
   justify-content: center;
   box-sizing: border-box;
+  position: relative;
+  z-index: 20;
 }
 
 .app-layout-content {
@@ -63,5 +65,7 @@ defineEmits(['logout', 'select-tab']);
   width: 100%;
   max-width: 1360px;
   margin: 0 auto;
+  position: relative;
+  z-index: 10;
 }
 </style>
