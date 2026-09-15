@@ -21,30 +21,40 @@ async function initDb() {
     await query(`CREATE SCHEMA IF NOT EXISTS qms;`);
     await query(`
       CREATE TABLE IF NOT EXISTS qms.users (
-        id VARCHAR(50) PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         google_id VARCHAR(100),
-        name VARCHAR(255) NOT NULL,
+        name VARCHAR(255),
+        full_name VARCHAR(255),
         given_name VARCHAR(255),
         family_name VARCHAR(255),
         email VARCHAR(255) UNIQUE NOT NULL,
-        password_hash VARCHAR(255),
+        password_hash TEXT,
         picture TEXT,
+        avatar_url TEXT,
         role VARCHAR(50) DEFAULT 'operator',
-        status VARCHAR(50) DEFAULT 'Activo',
+        is_active BOOLEAN DEFAULT TRUE,
         google_login_enabled BOOLEAN DEFAULT FALSE,
-        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
     
-    // Auto-migrate missing columns if qms.users existed before
+    // Ensure all columns exist whether table was newly created or previously existing
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS name VARCHAR(255);`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255);`); } catch (e) {}
     try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS picture TEXT;`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS avatar_url TEXT;`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS password_hash TEXT;`); } catch (e) {}
     try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_login_enabled BOOLEAN DEFAULT FALSE;`); } catch (e) {}
     try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS given_name VARCHAR(255);`); } catch (e) {}
     try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS family_name VARCHAR(255);`); } catch (e) {}
     try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_id VARCHAR(100);`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`); } catch (e) {}
     try { await query(`ALTER TABLE qms.users ALTER COLUMN google_id DROP NOT NULL;`); } catch (e) {}
+    
+    // Sync missing values between full_name and name
+    try { await query(`UPDATE qms.users SET name = full_name WHERE name IS NULL AND full_name IS NOT NULL;`); } catch (e) {}
+    try { await query(`UPDATE qms.users SET full_name = name WHERE full_name IS NULL AND name IS NOT NULL;`); } catch (e) {}
+    try { await query(`UPDATE qms.users SET picture = avatar_url WHERE picture IS NULL AND avatar_url IS NOT NULL;`); } catch (e) {}
   } catch (err) {
     console.warn('⚠️ Base de datos PostgreSQL no disponible o error al inicializar esquema qms.users:', err.message);
   }
@@ -53,19 +63,20 @@ async function initDb() {
 initDb();
 
 function mapRowToUser(row) {
+  const displayName = row.name || row.full_name || 'Usuario';
+  const photo = row.picture || row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1e3a8a&color=fff`;
   return {
     id: row.id,
     googleId: row.google_id || null,
-    name: row.name,
-    givenName: row.given_name || row.name,
+    name: displayName,
+    givenName: row.given_name || displayName,
     familyName: row.family_name || '',
     email: row.email,
-    picture: row.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(row.name)}&background=1e3a8a&color=fff`,
+    picture: photo,
     role: row.role || 'operator',
-    status: row.status || 'Activo',
+    status: row.is_active === false ? 'Inactivo' : 'Activo',
     googleLoginEnabled: !!row.google_login_enabled,
-    createdAt: row.created_at,
-    lastLogin: row.last_login
+    createdAt: row.created_at
   };
 }
 
@@ -76,7 +87,7 @@ export async function upsertUserFromGoogle(googleUser) {
   if (!googleUser || !googleUser.email) return null;
   const sanitizedName = sanitizeFullName(googleUser.name || 'Usuario Google');
   const email = googleUser.email.toLowerCase().trim();
-  const now = new Date();
+  const avatar = googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
 
   try {
     const existingRes = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [email]);
@@ -84,11 +95,12 @@ export async function upsertUserFromGoogle(googleUser) {
       const existing = existingRes.rows[0];
       const updateRes = await query(
         `UPDATE qms.users 
-         SET name = $1, google_id = COALESCE($2, google_id), picture = COALESCE($3, picture), 
-             google_login_enabled = TRUE, last_login = $4 
-         WHERE LOWER(email) = $5 
+         SET full_name = $1, name = $1, google_id = COALESCE($2, google_id), 
+             avatar_url = COALESCE($3, avatar_url), picture = COALESCE($3, picture), 
+             google_login_enabled = TRUE, is_active = TRUE
+         WHERE LOWER(email) = $4 
          RETURNING *`,
-        [sanitizedName, googleUser.googleId, googleUser.picture, now, email]
+        [sanitizedName, googleUser.googleId, avatar, email]
       );
       return mapRowToUser(updateRes.rows[0]);
     }
@@ -96,23 +108,20 @@ export async function upsertUserFromGoogle(googleUser) {
     const countRes = await query('SELECT COUNT(*) FROM qms.users');
     const userCount = parseInt(countRes.rows[0].count, 10);
     const role = userCount === 0 ? 'admin_sgc' : 'operator';
-    const newId = `USR-${(userCount + 1).toString().padStart(3, '0')}`;
 
     const insertRes = await query(
       `INSERT INTO qms.users 
-       (id, google_id, name, given_name, family_name, email, picture, role, status, google_login_enabled, created_at, last_login)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Activo', TRUE, $9, $9)
+       (google_id, name, full_name, given_name, family_name, email, picture, avatar_url, role, is_active, google_login_enabled)
+       VALUES ($1, $2, $2, $3, $4, $5, $6, $6, $7, TRUE, TRUE)
        RETURNING *`,
       [
-        newId,
         googleUser.googleId,
         sanitizedName,
         googleUser.givenName || sanitizedName,
         googleUser.familyName || '',
         email,
-        googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`,
-        role,
-        now
+        avatar,
+        role
       ]
     );
     return mapRowToUser(insertRes.rows[0]);
@@ -128,6 +137,7 @@ export async function upsertUserFromGoogle(googleUser) {
 export async function registerFormUser({ name, email, password }) {
   const sanitizedName = sanitizeFullName(name);
   const normalizedEmail = email.toLowerCase().trim();
+  const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
 
   const existingRes = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [normalizedEmail]);
   if (existingRes.rows.length > 0) {
@@ -140,22 +150,18 @@ export async function registerFormUser({ name, email, password }) {
   const countRes = await query('SELECT COUNT(*) FROM qms.users');
   const userCount = parseInt(countRes.rows[0].count, 10);
   const role = userCount === 0 ? 'admin_sgc' : 'operator';
-  const newId = `USR-${(userCount + 1).toString().padStart(3, '0')}`;
-  const now = new Date();
 
   const insertRes = await query(
     `INSERT INTO qms.users 
-     (id, google_id, name, given_name, family_name, email, password_hash, picture, role, status, google_login_enabled, created_at, last_login)
-     VALUES ($1, NULL, $2, $2, '', $3, $4, $5, $6, 'Activo', FALSE, $7, $7)
+     (google_id, name, full_name, given_name, family_name, email, password_hash, picture, avatar_url, role, is_active, google_login_enabled)
+     VALUES (NULL, $1, $1, $1, '', $2, $3, $4, $4, $5, TRUE, FALSE)
      RETURNING *`,
     [
-      newId,
       sanitizedName,
       normalizedEmail,
       passwordHash,
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`,
-      role,
-      now
+      avatar,
+      role
     ]
   );
 
@@ -184,10 +190,6 @@ export async function loginFormUser({ email, password }) {
   if (!isMatch) {
     throw new Error('Correo electrónico o contraseña incorrectos');
   }
-
-  const now = new Date();
-  await query('UPDATE qms.users SET last_login = $1 WHERE id = $2', [now, userRow.id]);
-  userRow.last_login = now;
 
   return mapRowToUser(userRow);
 }
