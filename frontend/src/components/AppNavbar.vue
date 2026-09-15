@@ -1,6 +1,6 @@
 <template>
   <header class="app-navbar glass-nav">
-    <div class="nav-brand">
+    <div class="nav-brand" @click="navigate('/dashboard/overview')" style="cursor: pointer;">
       <div class="nav-logo">
         <i class="fa-solid fa-shield-halved"></i>
       </div>
@@ -12,7 +12,7 @@
 
     <!-- Acciones de escritorio -->
     <div class="nav-actions desktop-only">
-      <div v-if="user" class="user-chip shadow-sm">
+      <div v-if="user" class="user-chip shadow-sm" @click="navigate('/dashboard/profile')" style="cursor: pointer;">
         <img :src="userAvatar" :alt="user.name" class="chip-avatar" @error="onAvatarError">
         <span class="chip-name">{{ user.givenName || user.name }}</span>
       </div>
@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <!-- Boton tipo toggle movil -->
+    <!-- Botón desplegable móvil -->
     <button 
       type="button"
       class="mobile-toggle-btn mobile-only icon-btn" 
@@ -32,7 +32,7 @@
       <i :class="isMobileMenuOpen ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'"></i>
     </button>
 
-    <!-- Menu lateral  desplegable-->
+    <!-- Menú lateral desplegable (Teleport) -->
     <Teleport to="body">
       <div 
         v-if="isMobileMenuOpen" 
@@ -53,7 +53,7 @@
           </div>
 
           <div class="drawer-body">
-            <div v-if="user" class="drawer-user-box">
+            <div v-if="user" class="drawer-user-box" @click="navigate('/dashboard/profile')">
               <img :src="userAvatar" :alt="user.name" class="drawer-avatar" @error="onAvatarError">
               <div class="drawer-user-info">
                 <span class="drawer-name">{{ user.name }}</span>
@@ -61,21 +61,21 @@
               </div>
             </div>
 
-            <!-- Mobile Navigation Menu -->
+            <!-- Navegación Móvil -->
             <nav class="drawer-nav">
               <span class="drawer-section-title">Navegación del Sistema</span>
               
               <button 
-                :class="['drawer-nav-item', { active: activeTab === 'overview' }]"
-                @click="selectTab('overview')"
+                :class="['drawer-nav-item', { active: isTabActive('/dashboard/overview') }]"
+                @click="navigate('/dashboard/overview')"
               >
                 <i class="fa-solid fa-chart-pie"></i>
                 <span>Resumen Dashboard</span>
               </button>
 
               <button 
-                :class="['drawer-nav-item', { active: activeTab === 'documents' }]"
-                @click="selectTab('documents')"
+                :class="['drawer-nav-item', { active: isTabActive('/dashboard/documents') }]"
+                @click="navigate('/dashboard/documents')"
               >
                 <i class="fa-solid fa-folder-closed"></i>
                 <span>Gestor de Documentos</span>
@@ -83,8 +83,8 @@
               </button>
 
               <button 
-                :class="['drawer-nav-item', { active: activeTab === 'users' }]"
-                @click="selectTab('users')"
+                :class="['drawer-nav-item', { active: isTabActive('/dashboard/users') }]"
+                @click="navigate('/dashboard/users')"
               >
                 <i class="fa-solid fa-users"></i>
                 <span>Usuarios</span>
@@ -92,8 +92,8 @@
               </button>
 
               <button 
-                :class="['drawer-nav-item', { active: activeTab === 'roles' }]"
-                @click="selectTab('roles')"
+                :class="['drawer-nav-item', { active: isTabActive('/dashboard/roles') }]"
+                @click="navigate('/dashboard/roles')"
               >
                 <i class="fa-solid fa-user-gear"></i>
                 <span>Roles y Permisos</span>
@@ -101,8 +101,8 @@
               </button>
 
               <button 
-                :class="['drawer-nav-item', { active: activeTab === 'profile' }]"
-                @click="selectTab('profile')"
+                :class="['drawer-nav-item', { active: isTabActive('/dashboard/profile') }]"
+                @click="navigate('/dashboard/profile')"
               >
                 <i class="fa-solid fa-circle-user"></i>
                 <span>Mi Perfil & Token</span>
@@ -128,35 +128,47 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import { useRouter, useRoute } from "vue-router";
+import { useAuthStore } from "../stores/auth";
+import { useDocumentStore } from "../stores/documents";
+import { useUserStore } from "../stores/users";
+import { useRoleStore } from "../stores/roles";
 
-const props = defineProps({
-  isAuthenticated: { type: Boolean, default: false },
-  user: { type: Object, default: () => null },
-  activeTab: { type: String, default: 'overview' },
-  documentsCount: { type: Number, default: 0 },
-  usersCount: { type: Number, default: 0 },
-  rolesCount: { type: Number, default: 0 }
-});
+const router = useRouter();
+const route = useRoute();
+const authStore = useAuthStore();
+const documentStore = useDocumentStore();
+const userStore = useUserStore();
+const roleStore = useRoleStore();
 
-const emit = defineEmits(["logout", "select-tab"]);
 const isMobileMenuOpen = ref(false);
 
+const user = computed(() => authStore.user);
+const documentsCount = computed(() => documentStore.documents.length);
+const usersCount = computed(() => userStore.users.length);
+const rolesCount = computed(() => roleStore.roles.length);
+
 const userAvatar = computed(() => {
-  return props.user?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(props.user?.name || "User") + "&background=1e3a8a&color=fff";
+  return user.value?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.value?.name || "User") + "&background=1e3a8a&color=fff";
 });
 
 function onAvatarError(e) {
-  e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(props.user?.name || "User") + "&background=1e3a8a&color=fff";
+  e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.value?.name || "User") + "&background=1e3a8a&color=fff";
 }
 
-function selectTab(tabKey) {
-  emit("select-tab", tabKey);
+function isTabActive(path) {
+  return route.path === path;
+}
+
+function navigate(path) {
+  router.push(path);
   isMobileMenuOpen.value = false;
 }
 
 function handleLogout() {
   isMobileMenuOpen.value = false;
-  emit("logout");
+  authStore.logout();
+  router.push('/login');
 }
 </script>
 
@@ -340,6 +352,7 @@ function handleLogout() {
   padding: 12px;
   background: var(--bg-main);
   border-radius: var(--radius-md);
+  cursor: pointer;
 }
 
 :global(.drawer-avatar) {

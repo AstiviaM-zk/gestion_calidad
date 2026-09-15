@@ -23,12 +23,12 @@
       </div>
 
       <div class="demo-section">
-        <button type="button" class="btn btn-secondary btn-full" @click="emit('demo-login')">
+        <button type="button" class="btn btn-secondary btn-full" @click="handleDemoLogin">
           <i class="fa-solid fa-flask"></i> Demostración (Modo Pruebas)
         </button>
       </div>
        
-      <!-- Si el archivo env esta mal o no esta configurado correctamente, se muestra este mensaje -->
+      <!-- Alerta si Client ID es por defecto -->
       <div v-if="isDefaultClientId" class="alert alert-warning shadow-sm">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <div>
@@ -50,32 +50,39 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import { useAuthStore } from '../stores/auth';
 
-const props = defineProps({
-  googleClientId: { type: String, default: '' },
-  statusMessage: { type: String, default: '' },
-  statusType: { type: String, default: 'info' },
-  isLoading: { type: Boolean, default: false }
-});
-
-const emit = defineEmits(['google-success', 'google-error', 'demo-login']);
+const router = useRouter();
+const authStore = useAuthStore();
 const sdkLoading = ref(true);
 
+const googleClientId = computed(() => authStore.googleClientId);
+const statusMessage = computed(() => authStore.statusMessage);
+const statusType = computed(() => authStore.statusType);
+
 const isDefaultClientId = computed(() => {
-  return !props.googleClientId || props.googleClientId.includes('YOUR_GOOGLE_CLIENT_ID');
+  return !googleClientId.value || googleClientId.value.includes('YOUR_GOOGLE_CLIENT_ID');
 });
 
 const statusIcon = computed(() => {
-  if (props.statusType === 'error') return 'fa-solid fa-circle-xmark';
-  if (props.statusType === 'success') return 'fa-solid fa-circle-check';
+  if (statusType.value === 'error') return 'fa-solid fa-circle-xmark';
+  if (statusType.value === 'success') return 'fa-solid fa-circle-check';
   return 'fa-solid fa-circle-info';
 });
 
-onMounted(() => { initGoogleSdk(); });
-watch(() => props.googleClientId, () => { initGoogleSdk(); });
+onMounted(() => {
+  authStore.fetchAuthConfig().then(() => {
+    initGoogleSdk();
+  });
+});
+
+watch(googleClientId, () => {
+  initGoogleSdk();
+});
 
 function initGoogleSdk() {
-  const targetClientId = (!isDefaultClientId.value) ? props.googleClientId : '1000000000000-placeholder.apps.googleusercontent.com';
+  const targetClientId = (!isDefaultClientId.value) ? googleClientId.value : '1000000000000-placeholder.apps.googleusercontent.com';
   const interval = setInterval(() => {
     if (window.google && window.google.accounts) {
       clearInterval(interval);
@@ -100,12 +107,18 @@ function initGoogleSdk() {
   }, 100);
 }
 
-function handleGoogleResponse(response) {
+async function handleGoogleResponse(response) {
   if (response && response.credential) {
-    emit('google-success', response.credential);
-  } else {
-    emit('google-error', 'Respuesta de credencial inválida de Google');
+    const success = await authStore.loginWithGoogle(response.credential);
+    if (success) {
+      router.push('/dashboard/overview');
+    }
   }
+}
+
+function handleDemoLogin() {
+  authStore.demoLogin();
+  router.push('/dashboard/overview');
 }
 </script>
 
@@ -241,5 +254,37 @@ function handleGoogleResponse(response) {
   text-align: center;
   font-size: 11px;
   color: var(--text-subtle);
+}
+
+.alert-warning {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.status-msg {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.status-msg.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.status-msg.info {
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
 }
 </style>

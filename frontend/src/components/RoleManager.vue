@@ -12,7 +12,7 @@
 
     <div class="roles-grid">
       <div 
-        v-for="role in roles" 
+        v-for="role in roleList" 
         :key="role.name" 
         :class="['role-card', 'shadow-card', { 'system-role': role.isSystem }]"
       >
@@ -105,17 +105,34 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { useRoleStore } from "../stores/roles";
+import { useUserStore } from "../stores/users";
 
 const props = defineProps({
-  roles: { type: Array, default: () => [] },
-  users: { type: Array, default: () => [] }
+  roles: { type: Array, default: null },
+  users: { type: Array, default: null }
 });
 
-const emit = defineEmits(["role-created"]);
+const roleStore = useRoleStore();
+const userStore = useUserStore();
+
 const showCreateModal = ref(false);
 const isSubmitting = ref(false);
 const newRole = ref({ name: "", description: "", selectedPermissions: [] });
+
+onMounted(() => {
+  if (!props.roles) roleStore.fetchRoles();
+  if (!props.users) userStore.fetchUsers();
+});
+
+const roleList = computed(() => {
+  return props.roles || roleStore.roles;
+});
+
+const userList = computed(() => {
+  return props.users || userStore.users;
+});
 
 const availablePermissions = [
   { key: "docs:read", label: "Lectura de Documentos" },
@@ -135,32 +152,29 @@ function getRoleIcon(roleName) {
 }
 
 function getUserCountForRole(roleName) {
-  return props.users.filter(u => u.role === roleName).length;
+  return userList.value.filter(u => u.role === roleName).length;
 }
 
 async function submitCreateRole() {
   if (!newRole.value.name) return;
   isSubmitting.value = true;
   try {
-    const res = await fetch("/api/roles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newRole.value.name,
-        description: newRole.value.description,
-        permissions: newRole.value.selectedPermissions
-      })
+    const res = await roleStore.createRole({
+      name: newRole.value.name,
+      description: newRole.value.description,
+      permissions: newRole.value.selectedPermissions
     });
-    const data = await res.json();
-    if (data.success) {
-      emit("role-created");
+    if (res.success) {
       showCreateModal.value = false;
       newRole.value = { name: "", description: "", selectedPermissions: [] };
     } else {
-      alert(data.message || "Error al crear el rol");
+      alert(res.message || "Error al crear el rol");
     }
-  } catch (err) { console.error("Error guardando rol:", err); }
-  finally { isSubmitting.value = false; }
+  } catch (err) {
+    console.error("Error guardando rol:", err);
+  } finally {
+    isSubmitting.value = false;
+  }
 }
 </script>
 

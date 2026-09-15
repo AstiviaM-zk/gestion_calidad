@@ -20,7 +20,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in users" :key="user.email">
+          <tr v-for="user in userList" :key="user.email">
             <td class="font-mono text-sm font-bold text-primary">{{ user.id }}</td>
             <td>
               <div class="user-cell">
@@ -49,7 +49,7 @@
               </span>
             </td>
           </tr>
-          <tr v-if="users.length === 0">
+          <tr v-if="userList.length === 0">
             <td colspan="6" class="text-center empty-state">
               <i class="fa-solid fa-user-xmark empty-icon"></i>
               <p>Aún no hay usuarios registrados en el sistema.</p>
@@ -63,17 +63,30 @@
 </template>
 
 <script setup>
-import { computed } from "vue";
+import { computed, onMounted } from "vue";
+import { useUserStore } from "../stores/users";
+import { useRoleStore } from "../stores/roles";
 
 const props = defineProps({
-  users: { type: Array, default: () => [] },
-  roles: { type: Array, default: () => [] }
+  users: { type: Array, default: null },
+  roles: { type: Array, default: null }
 });
 
-const emit = defineEmits(["user-updated"]);
+const userStore = useUserStore();
+const roleStore = useRoleStore();
+
+onMounted(() => {
+  if (!props.users) userStore.fetchUsers();
+  if (!props.roles) roleStore.fetchRoles();
+});
+
+const userList = computed(() => {
+  return props.users || userStore.users;
+});
 
 const roleOptions = computed(() => {
-  if (props.roles && props.roles.length > 0) return props.roles;
+  const currentRoles = props.roles || roleStore.roles;
+  if (currentRoles && currentRoles.length > 0) return currentRoles;
   return [{ name: "Administrador" }, { name: "Usuario" }, { name: "Auditor" }];
 });
 
@@ -90,19 +103,10 @@ function onAvatarError(e, name) {
 }
 
 async function onRoleChange(user) {
-  try {
-    const res = await fetch("/api/users/" + encodeURIComponent(user.email) + "/role", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: user.role })
-    });
-    const data = await res.json();
-    if (data.success) {
-      emit("user-updated");
-    } else {
-      alert(data.message || "Error al actualizar el rol");
-    }
-  } catch (err) { console.error("Error enviando actualización de rol:", err); }
+  const res = await userStore.updateUserRole(user.email, user.role);
+  if (!res.success) {
+    alert(res.message || "Error al actualizar el rol");
+  }
 }
 </script>
 

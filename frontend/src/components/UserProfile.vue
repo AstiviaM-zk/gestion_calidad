@@ -3,18 +3,18 @@
     <div class="profile-hero">
       <div class="avatar-wrapper">
         <div class="avatar-ring">
-          <img :src="avatarUrl" :alt="user.name" class="user-avatar-lg" @error="handleAvatarError">
+          <img :src="avatarUrl" :alt="currentUser.name" class="user-avatar-lg" @error="handleAvatarError">
         </div>
         <span class="status-badge-online" title="Sesión activa en el sistema"></span>
       </div>
       
       <div class="profile-main-info">
         <span class="profile-role-pill">
-          <i class="fa-solid fa-shield-check"></i> {{ user.role || 'Usuario Autenticado (OAuth 2.0)' }}
+          <i class="fa-solid fa-shield-check"></i> {{ currentUser.role || 'Usuario Autenticado (OAuth 2.0)' }}
         </span>
-        <h2 class="profile-name">{{ user.name || "Usuario Institucional" }}</h2>
+        <h2 class="profile-name">{{ currentUser.name || "Usuario Institucional" }}</h2>
         <p class="profile-email">
-          <i class="fa-regular fa-envelope"></i> {{ user.email || "email@dominio.com" }}
+          <i class="fa-regular fa-envelope"></i> {{ currentUser.email || "email@dominio.com" }}
         </p>
       </div>
     </div>
@@ -25,7 +25,7 @@
           <i class="fa-brands fa-google"></i>
           <span>Google Subject Identifier (Sub ID)</span>
         </div>
-        <span class="detail-value-text">{{ user.googleId || user.id || "N/A" }}</span>
+        <span class="detail-value-text">{{ currentUser.googleId || currentUser.id || "N/A" }}</span>
       </div>
 
       <div class="profile-detail-card">
@@ -34,7 +34,7 @@
           <span>Token de Sesión Activa (JWT)</span>
         </div>
         <div class="token-container">
-          <code class="token-code">{{ token || "Token no disponible" }}</code>
+          <code class="token-code">{{ currentToken || "Token no disponible" }}</code>
           <button 
             type="button" 
             :class="['btn-copy-token', { copied }]" 
@@ -49,7 +49,7 @@
     </div>
 
     <div class="profile-actions">
-      <button type="button" class="btn btn-secondary" @click="emit('logout')">
+      <button type="button" class="btn btn-secondary" @click="handleLogout">
         <i class="fa-solid fa-right-from-bracket text-red"></i>
         <span>Cerrar Sesión</span>
       </button>
@@ -59,31 +59,42 @@
 
 <script setup>
 import { ref, computed } from "vue";
+import { useRouter } from "vue-router";
+import { useAuthStore } from "../stores/auth";
 
 const props = defineProps({
-  user: { type: Object, required: true },
+  user: { type: Object, default: null },
   token: { type: String, default: "" }
 });
 
-const emit = defineEmits(["logout"]);
+const router = useRouter();
+const authStore = useAuthStore();
 const copied = ref(false);
 
+const currentUser = computed(() => props.user || authStore.user || {});
+const currentToken = computed(() => props.token || authStore.token || "");
+
 const avatarUrl = computed(() => {
-  return props.user?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(props.user?.name || "User") + "&background=1e3a8a&color=fff";
+  return currentUser.value?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(currentUser.value?.name || "User") + "&background=1e3a8a&color=fff";
 });
 
 function handleAvatarError(e) {
-  e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(props.user?.name || "User") + "&background=1e3a8a&color=fff";
+  e.target.src = "https://ui-avatars.com/api/?name=" + encodeURIComponent(currentUser.value?.name || "User") + "&background=1e3a8a&color=fff";
 }
 
 async function copyToken() {
-  if (props.token) {
+  if (currentToken.value) {
     try {
-      await navigator.clipboard.writeText(props.token);
+      await navigator.clipboard.writeText(currentToken.value);
       copied.value = true;
       setTimeout(() => { copied.value = false; }, 1800);
     } catch (err) { console.error("Error al copiar el token:", err); }
   }
+}
+
+function handleLogout() {
+  authStore.logout();
+  router.push('/login');
 }
 </script>
 

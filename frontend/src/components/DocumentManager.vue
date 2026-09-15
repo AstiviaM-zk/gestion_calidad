@@ -95,14 +95,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
+import { useDocumentStore } from "../stores/documents";
 
 const props = defineProps({
-  documents: { type: Array, default: () => [] }
+  documents: { type: Array, default: null }
 });
 
+const documentStore = useDocumentStore();
 const searchQuery = ref("");
 const activeFilter = ref("all");
+
+onMounted(() => {
+  if (!props.documents || props.documents.length === 0) {
+    documentStore.fetchDocuments();
+  }
+});
+
+const documentList = computed(() => {
+  return props.documents || documentStore.documents;
+});
 
 const filters = [
   { label: "Todos", value: "all" },
@@ -112,7 +124,7 @@ const filters = [
 ];
 
 const filteredDocuments = computed(() => {
-  return props.documents.filter(doc => {
+  return documentList.value.filter(doc => {
     const matchesFilter = activeFilter.value === "all" || doc.status === activeFilter.value;
     const query = searchQuery.value.toLowerCase();
     const matchesSearch = doc.title.toLowerCase().includes(query) ||
