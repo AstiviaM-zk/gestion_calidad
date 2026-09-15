@@ -152,7 +152,7 @@
         <div id="google-signin-btn-vue" v-show="!sdkLoading"></div>
       </div>
        
-      <!-- Alerta si Client ID es por defecto -->
+      <!-- Alerta si Client ID es explícitamente el placeholder -->
       <div v-if="isDefaultClientId" class="alert alert-warning shadow-sm">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <div>
@@ -212,7 +212,7 @@ const statusType = computed(() => authStore.statusType);
 const isLoading = computed(() => authStore.isLoading);
 
 const isDefaultClientId = computed(() => {
-  return !googleClientId.value || googleClientId.value.includes('YOUR_GOOGLE_CLIENT_ID');
+  return !!(googleClientId.value && googleClientId.value.includes('YOUR_GOOGLE_CLIENT_ID'));
 });
 
 const statusIcon = computed(() => {
@@ -229,6 +229,8 @@ function switchTab(registerState) {
 onMounted(() => {
   authStore.fetchAuthConfig().then(() => {
     initGoogleSdk();
+  }).catch(() => {
+    initGoogleSdk();
   });
 });
 
@@ -237,7 +239,7 @@ watch(googleClientId, () => {
 });
 
 function initGoogleSdk() {
-  const targetClientId = (!isDefaultClientId.value) ? googleClientId.value : '1000000000000-placeholder.apps.googleusercontent.com';
+  const targetClientId = googleClientId.value || '606541311192-nta8lgacqaaofml43jci2vcokumom3mp.apps.googleusercontent.com';
   let attempts = 0;
   const interval = setInterval(() => {
     attempts++;
