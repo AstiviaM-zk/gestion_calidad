@@ -1,10 +1,11 @@
 import express from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import { upsertUserFromGoogle } from '../services/userService.js';
+import { upsertUserFromGoogle, registerFormUser, loginFormUser } from '../services/userService.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /**
  * GET /api/auth/config
@@ -14,6 +15,80 @@ router.get('/config', (req, res) => {
   res.json({
     googleClientId: process.env.GOOGLE_CLIENT_ID || ''
   });
+});
+
+/**
+ * POST /api/auth/register
+ * Handles local user registration with name, email and password
+ */
+router.post('/register', async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'El nombre completo es obligatorio.' });
+    }
+
+    if (!email || !EMAIL_REGEX.test(email.trim())) {
+      return res.status(400).json({ success: false, message: 'Ingresa un correo electrónico válido (ej. usuario@dominio.com).' });
+    }
+
+    if (!password || password.length < 6) {
+      return res.status(400).json({ success: false, message: 'La contraseña debe tener al menos 6 caracteres.' });
+    }
+
+    const user = await registerFormUser({ name, email, password });
+    const jwtSecret = process.env.JWT_SECRET || 'default_secret';
+    const token = jwt.sign(user, jwtSecret, { expiresIn: '7d' });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Registro exitoso',
+      token,
+      user
+    });
+  } catch (error) {
+    console.error('Error en /api/auth/register:', error.message);
+    return res.status(400).json({
+      success: false,
+      message: error.message || 'Error durante el registro de usuario'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/login
+ * Handles local user login with email and password
+ */
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !EMAIL_REGEX.test(email.trim())) {
+      return res.status(400).json({ success: false, message: 'Ingresa un correo electrónico válido.' });
+    }
+
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Por favor ingresa tu contraseña.' });
+    }
+
+    const user = await loginFormUser({ email, password });
+    const jwtSecret = process.env.JWT_SECRET || 'default_secret';
+    const token = jwt.sign(user, jwtSecret, { expiresIn: '7d' });
+
+    return res.json({
+      success: true,
+      message: 'Inicio de sesión exitoso',
+      token,
+      user
+    });
+  } catch (error) {
+    console.error('Error en /api/auth/login:', error.message);
+    return res.status(401).json({
+      success: false,
+      message: error.message || 'Credenciales inválidas'
+    });
+  }
 });
 
 /**
@@ -78,8 +153,8 @@ router.post('/google', async (req, res) => {
       emailVerified: payload.email_verified
     };
 
-    // Upsert into real user store
-    const user = upsertUserFromGoogle(rawUser);
+    // Upsert into real PostgreSQL user store
+    const user = await upsertUserFromGoogle(rawUser);
 
     // Create session JWT token
     const jwtSecret = process.env.JWT_SECRET || 'default_secret';

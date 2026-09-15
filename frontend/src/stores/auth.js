@@ -24,6 +24,64 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async loginWithForm(email, password) {
+      this.isLoading = true;
+      this.statusMessage = 'Iniciando sesión...';
+      this.statusType = 'info';
+
+      try {
+        const { data } = await api.post('/auth/login', { email, password });
+        if (data.success) {
+          this.token = data.token;
+          this.user = data.user;
+          this.isAuthenticated = true;
+          sessionStorage.setItem('qms_token', data.token);
+          sessionStorage.setItem('qms_user', JSON.stringify(data.user));
+          this.statusMessage = '';
+          return true;
+        } else {
+          this.statusMessage = data.message || 'Error en inicio de sesión';
+          this.statusType = 'error';
+          return false;
+        }
+      } catch (err) {
+        this.statusMessage = err.response?.data?.message || 'Error al iniciar sesión';
+        this.statusType = 'error';
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async registerWithForm(name, email, password) {
+      this.isLoading = true;
+      this.statusMessage = 'Creando cuenta...';
+      this.statusType = 'info';
+
+      try {
+        const { data } = await api.post('/auth/register', { name, email, password });
+        if (data.success) {
+          this.token = data.token;
+          this.user = data.user;
+          this.isAuthenticated = true;
+          sessionStorage.setItem('qms_token', data.token);
+          sessionStorage.setItem('qms_user', JSON.stringify(data.user));
+          this.statusMessage = '';
+          return true;
+        } else {
+          this.statusMessage = data.message || 'Error en registro';
+          this.statusType = 'error';
+          return false;
+        }
+      } catch (err) {
+        this.statusMessage = err.response?.data?.message || 'Error al registrar usuario';
+        this.statusType = 'error';
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
     async loginWithGoogle(credential) {
       this.isLoading = true;
       this.statusMessage = 'Autenticando credencial con backend...';
@@ -53,26 +111,6 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.isLoading = false;
       }
-    },
-
-    demoLogin() {
-      const demoUser = {
-        id: 'USR-001',
-        googleId: '1098234710928374',
-        name: 'Ing. Carlos Mendoza (Demostración)',
-        email: 'carlos.mendoza@institucion.gob.mx',
-        picture: 'https://ui-avatars.com/api/?name=Carlos+Mendoza&background=1e3a8a&color=fff',
-        role: 'Administrador',
-        status: 'Activo',
-        lastLogin: new Date().toISOString()
-      };
-      const demoToken = 'demo-jwt-token-vue3';
-
-      this.token = demoToken;
-      this.user = demoUser;
-      this.isAuthenticated = true;
-      sessionStorage.setItem('qms_token', demoToken);
-      sessionStorage.setItem('qms_user', JSON.stringify(demoUser));
     },
 
     logout() {
