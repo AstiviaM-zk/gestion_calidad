@@ -1,6 +1,7 @@
 import express from 'express';
 import { getAllRoles, createRole } from '../services/roleService.js';
 import { updateUserRole } from '../services/userService.js';
+import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -8,7 +9,7 @@ const router = express.Router();
  * GET /api/roles
  * Returns list of system and custom roles with permissions
  */
-router.get('/roles', (req, res) => {
+router.get('/roles', authenticateToken, (req, res) => {
   const roles = getAllRoles();
   res.json({
     success: true,
@@ -20,7 +21,7 @@ router.get('/roles', (req, res) => {
  * POST /api/roles
  * Creates a new custom role
  */
-router.post('/roles', (req, res) => {
+router.post('/roles', authenticateToken, (req, res) => {
   try {
     const { name, description, permissions } = req.body;
 
@@ -49,7 +50,7 @@ router.post('/roles', (req, res) => {
  * PUT /api/users/:email/role
  * Updates an authenticated user's role
  */
-router.put('/users/:email/role', (req, res) => {
+router.put('/users/:email/role', authenticateToken, (req, res) => {
   const { email } = req.params;
   const { role } = req.body;
 

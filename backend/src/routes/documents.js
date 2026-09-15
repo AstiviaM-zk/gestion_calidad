@@ -1,5 +1,6 @@
 import express from 'express';
 import { getAllUsers } from '../services/userService.js';
+import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -26,39 +27,6 @@ const documentsData = [
     updatedAt: '2026-08-28',
     type: 'PDF',
     size: '1.8 MB'
-  },
-  {
-    id: 'DOC-QMS-003',
-    title: 'Formato de Registro de Incidencias y No Conformidades',
-    category: 'Formatos',
-    version: 'v1.4',
-    status: 'En Revisión',
-    author: 'Lic. Fernando Ortiz',
-    updatedAt: '2026-09-02',
-    type: 'DOCX',
-    size: '850 KB'
-  },
-  {
-    id: 'DOC-QMS-004',
-    title: 'Plan Anual de Auditorías Internas de Calidad 2026-2027',
-    category: 'Planes',
-    version: 'v1.0',
-    status: 'Borrador',
-    author: 'Ing. Sofía Morales',
-    updatedAt: '2026-09-08',
-    type: 'PDF',
-    size: '2.5 MB'
-  },
-  {
-    id: 'DOC-QMS-005',
-    title: 'Matriz de Evaluación de Riesgos Operacionales',
-    category: 'Matrices',
-    version: 'v2.0',
-    status: 'Aprobado',
-    author: 'Ing. Carlos Mendoza',
-    updatedAt: '2026-07-20',
-    type: 'XLSX',
-    size: '3.1 MB'
   }
 ];
 
@@ -75,7 +43,7 @@ const statsData = {
 /**
  * GET /api/documents
  */
-router.get('/documents', (req, res) => {
+router.get('/documents', authenticateToken, (req, res) => {
   res.json({
     success: true,
     documents: documentsData
@@ -85,7 +53,7 @@ router.get('/documents', (req, res) => {
 /**
  * GET /api/stats
  */
-router.get('/stats', (req, res) => {
+router.get('/stats', authenticateToken, (req, res) => {
   res.json({
     success: true,
     stats: statsData
@@ -96,7 +64,7 @@ router.get('/stats', (req, res) => {
  * GET /api/users
  * Returns list of REAL users who have authenticated via Google OAuth
  */
-router.get('/users', (req, res) => {
+router.get('/users', authenticateToken, (req, res) => {
   const realUsers = getAllUsers();
   res.json({
     success: true,

@@ -2,6 +2,7 @@ import express from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import { upsertUserFromGoogle } from '../services/userService.js';
+import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -103,29 +104,11 @@ router.post('/google', async (req, res) => {
  * GET /api/auth/me
  * Validates session JWT token and returns current user details
  */
-router.get('/me', (req, res) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({
-      success: false,
-      message: 'Token de autorización faltante'
-    });
-  }
-
-  const token = authHeader.split(' ')[1];
-  try {
-    const jwtSecret = process.env.JWT_SECRET || 'default_secret';
-    const user = jwt.verify(token, jwtSecret);
-    return res.json({
-      success: true,
-      user
-    });
-  } catch (err) {
-    return res.status(401).json({
-      success: false,
-      message: 'Token inválido o expirado'
-    });
-  }
+router.get('/me', authenticateToken, (req, res) => {
+  return res.json({
+    success: true,
+    user: req.user
+  });
 });
 
 export default router;

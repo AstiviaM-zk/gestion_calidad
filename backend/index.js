@@ -33,6 +33,16 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Servidor QMS Backend activo (Vite + Vue 3)", timestamp: new Date() });
 });
 
+// Middleware global de manejo de errores HTTP
+app.use((err, req, res, next) => {
+  console.error("❌ Error no controlado:", err);
+  const status = err.status || err.statusCode || 500;
+  res.status(status).json({
+    success: false,
+    message: err.message || "Error interno del servidor"
+  });
+});
+
 app.use((req, res) => {
   const distIndex = path.join(__dirname, "dist", "index.html");
   if (fs.existsSync(distIndex)) {

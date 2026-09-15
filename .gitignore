@@ -40,3 +40,4 @@ Desktop.ini
 .vscode/
 .idea/
 .gemini/
+backend/data/users.json
