@@ -2,8 +2,8 @@ import { query } from '../config/db.js';
 import bcrypt from 'bcryptjs';
 
 /**
- * Helper to format full name into Title Case with single spaces between words
- * Example: "  cARLOS   mAriANo   pERez " -> "Carlos Mariano Perez"
+ * Formatea el nombre completo a Title Case con un solo espacio entre palabras
+ * Ejemplo: "  cARLOS   mAriANo   pERez " -> "Carlos Mariano Perez"
  */
 export function sanitizeFullName(name) {
   if (!name || typeof name !== 'string') return '';
@@ -15,7 +15,7 @@ export function sanitizeFullName(name) {
     .join(' ');
 }
 
-// Auto-initialize DB table and schema on import
+// Inicialización de la tabla si no existe (usa estrictamente las columnas originales de la BD: full_name, avatar_url, is_active)
 async function initDb() {
   try {
     await query(`CREATE SCHEMA IF NOT EXISTS qms;`);
@@ -23,13 +23,9 @@ async function initDb() {
       CREATE TABLE IF NOT EXISTS qms.users (
         id SERIAL PRIMARY KEY,
         google_id VARCHAR(100),
-        name VARCHAR(255),
-        full_name VARCHAR(255),
-        given_name VARCHAR(255),
-        family_name VARCHAR(255),
+        full_name VARCHAR(255) NOT NULL,
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT,
-        picture TEXT,
         avatar_url TEXT,
         role VARCHAR(50) DEFAULT 'operator',
         is_active BOOLEAN DEFAULT TRUE,
@@ -37,42 +33,28 @@ async function initDb() {
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    
-    // Ensure all columns exist whether table was newly created or previously existing
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS name VARCHAR(255);`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255);`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS picture TEXT;`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS avatar_url TEXT;`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS password_hash TEXT;`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_login_enabled BOOLEAN DEFAULT FALSE;`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS given_name VARCHAR(255);`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS family_name VARCHAR(255);`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_id VARCHAR(100);`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;`); } catch (e) {}
-    try { await query(`ALTER TABLE qms.users ALTER COLUMN google_id DROP NOT NULL;`); } catch (e) {}
-    
-    // Sync missing values between full_name and name
-    try { await query(`UPDATE qms.users SET name = full_name WHERE name IS NULL AND full_name IS NOT NULL;`); } catch (e) {}
-    try { await query(`UPDATE qms.users SET full_name = name WHERE full_name IS NULL AND name IS NOT NULL;`); } catch (e) {}
-    try { await query(`UPDATE qms.users SET picture = avatar_url WHERE picture IS NULL AND avatar_url IS NOT NULL;`); } catch (e) {}
   } catch (err) {
-    console.warn('⚠️ Base de datos PostgreSQL no disponible o error al inicializar esquema qms.users:', err.message);
+    console.warn('⚠️ Base de datos PostgreSQL no disponible o error al verificar tabla qms.users:', err.message);
   }
 }
 
 initDb();
 
+/**
+ * Mapea la fila de la base de datos (con full_name y avatar_url) al objeto de usuario del sistema
+ */
 function mapRowToUser(row) {
-  const displayName = row.name || row.full_name || 'Usuario';
-  const photo = row.picture || row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1e3a8a&color=fff`;
+  const nameVal = row.full_name || '';
+  const avatarVal = row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal || 'Usuario')}&background=1e3a8a&color=fff`;
+
   return {
     id: row.id,
     googleId: row.google_id || null,
-    name: displayName,
-    givenName: row.given_name || displayName,
-    familyName: row.family_name || '',
+    name: nameVal,
+    givenName: nameVal,
+    familyName: '',
     email: row.email,
-    picture: photo,
+    picture: avatarVal,
     role: row.role || 'operator',
     status: row.is_active === false ? 'Inactivo' : 'Activo',
     googleLoginEnabled: !!row.google_login_enabled,
@@ -81,26 +63,25 @@ function mapRowToUser(row) {
 }
 
 /**
- * Upsert Google User into PostgreSQL
+ * Inserta o actualiza un usuario de Google usando únicamente las columnas de la BD (full_name, avatar_url)
  */
 export async function upsertUserFromGoogle(googleUser) {
   if (!googleUser || !googleUser.email) return null;
   const sanitizedName = sanitizeFullName(googleUser.name || 'Usuario Google');
   const email = googleUser.email.toLowerCase().trim();
-  const avatar = googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
+  const avatarUrl = googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
 
   try {
     const existingRes = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [email]);
     if (existingRes.rows.length > 0) {
-      const existing = existingRes.rows[0];
       const updateRes = await query(
         `UPDATE qms.users 
-         SET full_name = $1, name = $1, google_id = COALESCE($2, google_id), 
-             avatar_url = COALESCE($3, avatar_url), picture = COALESCE($3, picture), 
+         SET full_name = $1, google_id = COALESCE($2, google_id), 
+             avatar_url = COALESCE($3, avatar_url), 
              google_login_enabled = TRUE, is_active = TRUE
          WHERE LOWER(email) = $4 
          RETURNING *`,
-        [sanitizedName, googleUser.googleId, avatar, email]
+        [sanitizedName, googleUser.googleId, avatarUrl, email]
       );
       return mapRowToUser(updateRes.rows[0]);
     }
@@ -111,16 +92,14 @@ export async function upsertUserFromGoogle(googleUser) {
 
     const insertRes = await query(
       `INSERT INTO qms.users 
-       (google_id, name, full_name, given_name, family_name, email, picture, avatar_url, role, is_active, google_login_enabled)
-       VALUES ($1, $2, $2, $3, $4, $5, $6, $6, $7, TRUE, TRUE)
+       (google_id, full_name, email, avatar_url, role, is_active, google_login_enabled)
+       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE)
        RETURNING *`,
       [
         googleUser.googleId,
         sanitizedName,
-        googleUser.givenName || sanitizedName,
-        googleUser.familyName || '',
         email,
-        avatar,
+        avatarUrl,
         role
       ]
     );
@@ -132,12 +111,12 @@ export async function upsertUserFromGoogle(googleUser) {
 }
 
 /**
- * Register Form User with Email / Password
+ * Registro de usuario por formulario usando las columnas originales de la BD (full_name, avatar_url)
  */
 export async function registerFormUser({ name, email, password }) {
   const sanitizedName = sanitizeFullName(name);
   const normalizedEmail = email.toLowerCase().trim();
-  const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
 
   const existingRes = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [normalizedEmail]);
   if (existingRes.rows.length > 0) {
@@ -153,14 +132,14 @@ export async function registerFormUser({ name, email, password }) {
 
   const insertRes = await query(
     `INSERT INTO qms.users 
-     (google_id, name, full_name, given_name, family_name, email, password_hash, picture, avatar_url, role, is_active, google_login_enabled)
-     VALUES (NULL, $1, $1, $1, '', $2, $3, $4, $4, $5, TRUE, FALSE)
+     (google_id, full_name, email, password_hash, avatar_url, role, is_active, google_login_enabled)
+     VALUES (NULL, $1, $2, $3, $4, $5, TRUE, FALSE)
      RETURNING *`,
     [
       sanitizedName,
       normalizedEmail,
       passwordHash,
-      avatar,
+      avatarUrl,
       role
     ]
   );
@@ -169,7 +148,7 @@ export async function registerFormUser({ name, email, password }) {
 }
 
 /**
- * Login Form User with Email / Password
+ * Inicio de sesión por formulario utilizando email y contraseña
  */
 export async function loginFormUser({ email, password }) {
   const normalizedEmail = email.toLowerCase().trim();
@@ -195,7 +174,7 @@ export async function loginFormUser({ email, password }) {
 }
 
 /**
- * Get all users
+ * Obtener todos los usuarios registrados
  */
 export async function getAllUsers() {
   try {
@@ -208,7 +187,7 @@ export async function getAllUsers() {
 }
 
 /**
- * Update user role
+ * Actualizar rol de usuario
  */
 export async function updateUserRole(email, newRole) {
   try {
