@@ -3,7 +3,7 @@
     <div class="section-header">
       <div>
         <h3 class="section-title"><i class="fa-solid fa-users-gear"></i> Usuarios Autenticados y Asignación de Roles</h3>
-        <p class="section-subtitle">Asigna y modifica roles (Administrador, Usuario, Auditor) para los usuarios autenticados con Google</p>
+        <p class="section-subtitle">Asigna y modifica roles para los usuarios autenticados en el sistema QMS</p>
       </div>
     </div>
 
@@ -36,7 +36,7 @@
                   class="role-select" 
                   @change="onRoleChange(user)"
                 >
-                  <option v-for="r in roleOptions" :key="r.name" :value="r.name">
+                  <option v-for="r in roleOptions" :key="r.role || r.name" :value="r.role || r.name">
                     {{ r.name }}
                   </option>
                 </select>
@@ -87,7 +87,12 @@ const userList = computed(() => {
 const roleOptions = computed(() => {
   const currentRoles = props.roles || roleStore.roles;
   if (currentRoles && currentRoles.length > 0) return currentRoles;
-  return [{ name: "Administrador" }, { name: "Usuario" }, { name: "Auditor" }];
+  return [
+    { role: "admin_sgc", name: "Administrador (Calidad)" },
+    { role: "leader", name: "Líder de Área (Dueño de proceso)" },
+    { role: "operator", name: "Usuario común / Operativo" },
+    { role: "auditor", name: "Auditor interno / externo" }
+  ];
 });
 
 function formatDate(dateStr) {
@@ -174,7 +179,7 @@ async function onRoleChange(user) {
 .role-select-wrapper {
   position: relative;
   width: 100%;
-  max-width: 150px;
+  max-width: 220px;
 }
 
 .role-select {

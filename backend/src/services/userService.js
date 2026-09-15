@@ -71,9 +71,9 @@ export function upsertUserFromGoogle(googleUser) {
     return existing;
   }
 
-  // First user to log in gets 'Administrador' role, subsequent users get 'Usuario'
+  // First user to log in gets 'admin_sgc' role, subsequent users get 'operator'
   const isFirstUser = usersMap.size === 0;
-  const role = isFirstUser ? 'Administrador' : 'Usuario';
+  const role = isFirstUser ? 'admin_sgc' : 'operator';
 
   const newUser = {
     id: `USR-${(usersMap.size + 1).toString().padStart(3, '0')}`,

@@ -2,8 +2,8 @@
   <div class="panel-section">
     <div class="section-header">
       <div>
-        <h3 class="section-title"><i class="fa-solid fa-user-gear"></i> Roles y Matriz de Permisos</h3>
-        <p class="section-subtitle">Administra los roles predeterminados (Administrador, Usuario, Auditor) y crea perfiles personalizados</p>
+        <h3 class="section-title"><i class="fa-solid fa-user-gear"></i> Roles y Matriz de Permisos QMS</h3>
+        <p class="section-subtitle">Administra los roles por defecto (admin_sgc, leader, operator, auditor) y sus perfiles de permisos</p>
       </div>
       <button class="btn btn-primary btn-sm" @click="showCreateModal = true">
         <i class="fa-solid fa-shield-plus"></i> Crear Nuevo Rol
@@ -13,13 +13,16 @@
     <div class="roles-grid">
       <div 
         v-for="role in roleList" 
-        :key="role.name" 
+        :key="role.role || role.name" 
         :class="['role-card', 'shadow-card', { 'system-role': role.isSystem }]"
       >
         <div class="role-header">
           <div class="role-title-box">
-            <i :class="getRoleIcon(role.name)" class="role-card-icon"></i>
-            <h4 class="role-name">{{ role.name }}</h4>
+            <i :class="getRoleIcon(role.role, role.name)" class="role-card-icon"></i>
+            <div>
+              <h4 class="role-name">{{ role.name }}</h4>
+              <code class="role-code-badge">{{ role.role || 'custom' }}</code>
+            </div>
           </div>
           <span :class="['type-badge', role.isSystem ? 'badge-system' : 'badge-custom']">
             {{ role.isSystem ? "Sistema" : "Personalizado" }}
@@ -30,12 +33,12 @@
 
         <div class="role-meta">
           <span class="user-count">
-            <i class="fa-solid fa-users"></i> {{ getUserCountForRole(role.name) }} usuario(s) asignado(s)
+            <i class="fa-solid fa-users"></i> {{ getUserCountForRole(role) }} usuario(s) asignado(s)
           </span>
         </div>
 
         <div class="permissions-container">
-          <span class="perm-title">Permisos Habilitados:</span>
+          <span class="perm-title">Alcance de Permisos:</span>
           <div class="perm-tags">
             <span 
               v-for="perm in role.permissions" 
@@ -64,7 +67,7 @@
             <input 
               type="text" 
               v-model="newRole.name" 
-              placeholder="ej: Supervisor de Calidad" 
+              placeholder="ej: Gestor de Calidad" 
               class="form-input" 
               required
             >
@@ -135,24 +138,27 @@ const userList = computed(() => {
 });
 
 const availablePermissions = [
-  { key: "docs:read", label: "Lectura de Documentos" },
-  { key: "docs:create", label: "Creación de Documentos" },
-  { key: "docs:edit", label: "Edición de Documentos" },
-  { key: "docs:delete", label: "Eliminación de Documentos" },
-  { key: "docs:approve", label: "Aprobación de Calidad" },
+  { key: "templates:crud", label: "CRUD Total de Plantillas" },
+  { key: "versions:manage", label: "Gestión de Versiones" },
+  { key: "evidences:view_all", label: "Visibilidad Total de Evidencias" },
+  { key: "evidences:validate_dept", label: "Validar Evidencias de Área" },
+  { key: "evidences:upload", label: "Subir Formatos / Evidencias" },
   { key: "users:manage", label: "Gestión de Usuarios" },
-  { key: "audit:export", label: "Exportación de Reportes" }
+  { key: "audit:logs", label: "Revisión de Logs de Acceso" }
 ];
 
-function getRoleIcon(roleName) {
-  if (roleName === "Administrador") return "fa-solid fa-user-shield text-indigo";
-  if (roleName === "Usuario") return "fa-solid fa-user text-blue";
-  if (roleName === "Auditor") return "fa-solid fa-user-check text-emerald";
+function getRoleIcon(roleKey, roleName) {
+  const key = roleKey || roleName || "";
+  if (key === "admin_sgc" || key.includes("Administrador")) return "fa-solid fa-user-shield text-indigo";
+  if (key === "leader" || key.includes("Líder")) return "fa-solid fa-user-tie text-blue";
+  if (key === "operator" || key.includes("Operativo") || key.includes("Usuario")) return "fa-solid fa-user text-purple";
+  if (key === "auditor" || key.includes("Auditor")) return "fa-solid fa-user-check text-emerald";
   return "fa-solid fa-user-gear text-purple";
 }
 
-function getUserCountForRole(roleName) {
-  return userList.value.filter(u => u.role === roleName).length;
+function getUserCountForRole(roleObj) {
+  const targetKey = roleObj.role || roleObj.name;
+  return userList.value.filter(u => u.role === targetKey || u.role === roleObj.name).length;
 }
 
 async function submitCreateRole() {
@@ -239,25 +245,38 @@ async function submitCreateRole() {
 
 .role-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
 }
 
 .role-title-box {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
 }
 
 .role-card-icon {
-  font-size: 18px;
+  font-size: 20px;
+  margin-top: 2px;
 }
 
 .role-name {
   font-family: var(--font-heading);
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--primary);
+  line-height: 1.2;
+}
+
+.role-code-badge {
+  font-family: monospace;
+  font-size: 10px;
+  background: var(--bg-main);
+  color: var(--text-muted);
+  padding: 1px 5px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 2px;
 }
 
 .type-badge {
