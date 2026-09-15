@@ -37,23 +37,14 @@ async function initDb() {
       );
     `);
     
-    try {
-      await query(`ALTER TABLE qms.users ALTER COLUMN google_id DROP NOT NULL;`);
-    } catch (e) {
-      // Ignore if constraint already removed
-    }
-
-    try {
-      await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_login_enabled BOOLEAN DEFAULT FALSE;`);
-    } catch (e) {
-      // Ignore if column exists
-    }
-
-    try {
-      await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);`);
-    } catch (e) {
-      // Ignore if column exists
-    }
+    // Auto-migrate missing columns if qms.users existed before
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS picture TEXT;`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_login_enabled BOOLEAN DEFAULT FALSE;`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS given_name VARCHAR(255);`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS family_name VARCHAR(255);`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_id VARCHAR(100);`); } catch (e) {}
+    try { await query(`ALTER TABLE qms.users ALTER COLUMN google_id DROP NOT NULL;`); } catch (e) {}
   } catch (err) {
     console.warn('⚠️ Base de datos PostgreSQL no disponible o error al inicializar esquema qms.users:', err.message);
   }
