@@ -36,11 +36,24 @@ async function initDb() {
         last_login TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
-    // Ensure google_id is NOT NULL constraint removed if it exists
-    await query(`ALTER TABLE qms.users ALTER COLUMN google_id DROP NOT NULL;`).catch(() => {});
-    // Add google_login_enabled column if missing
-    await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_login_enabled BOOLEAN DEFAULT FALSE;`).catch(() => {});
-    await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);`).catch(() => {});
+    
+    try {
+      await query(`ALTER TABLE qms.users ALTER COLUMN google_id DROP NOT NULL;`);
+    } catch (e) {
+      // Ignore if constraint already removed
+    }
+
+    try {
+      await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS google_login_enabled BOOLEAN DEFAULT FALSE;`);
+    } catch (e) {
+      // Ignore if column exists
+    }
+
+    try {
+      await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);`);
+    } catch (e) {
+      // Ignore if column exists
+    }
   } catch (err) {
     console.warn('⚠️ Base de datos PostgreSQL no disponible o error al inicializar esquema qms.users:', err.message);
   }
