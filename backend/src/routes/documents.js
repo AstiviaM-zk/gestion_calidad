@@ -60,16 +60,4 @@ router.get('/stats', authenticateToken, (req, res) => {
   });
 });
 
-/**
- * GET /api/users
- * Returns list of REAL users who have authenticated via Google OAuth
- */
-router.get('/users', authenticateToken, (req, res) => {
-  const realUsers = getAllUsers();
-  res.json({
-    success: true,
-    users: realUsers
-  });
-});
-
 export default router;

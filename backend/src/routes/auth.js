@@ -167,7 +167,7 @@ router.post('/google', async (req, res) => {
 
 /**
  * GET /api/auth/me
- * Validates session JWT token and returns current user details directly from PostgreSQL
+ * Validates session JWT token and returns current user details directly from PostgreSQL with a fresh token
  */
 router.get('/me', authenticateToken, async (req, res) => {
   try {
@@ -178,9 +178,12 @@ router.get('/me', authenticateToken, async (req, res) => {
         message: 'Usuario no encontrado en la base de datos'
       });
     }
+    const jwtSecret = process.env.JWT_SECRET || 'default_secret';
+    const token = jwt.sign(user, jwtSecret, { expiresIn: '7d' });
     return res.json({
       success: true,
-      user
+      user,
+      token
     });
   } catch (err) {
     return res.json({

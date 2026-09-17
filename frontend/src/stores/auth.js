@@ -47,6 +47,10 @@ export const useAuthStore = defineStore('auth', {
         if (data && data.success && data.user) {
           this.user = data.user;
           sessionStorage.setItem('qms_user', JSON.stringify(data.user));
+          if (data.token) {
+            this.token = data.token;
+            sessionStorage.setItem('qms_token', data.token);
+          }
         }
       } catch (err) {
         console.warn('No se pudo refrescar la información del usuario:', err.message);

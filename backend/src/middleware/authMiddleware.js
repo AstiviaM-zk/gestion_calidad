@@ -1,9 +1,11 @@
 import jwt from 'jsonwebtoken';
+import { getUserByEmail } from '../services/userService.js';
 
 /**
  * Middleware para verificar que la petición incluya un token JWT válido
+ * y consultar el estado actual del usuario en PostgreSQL.
  */
-export function authenticateToken(req, res, next) {
+export async function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
   
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -18,6 +20,13 @@ export function authenticateToken(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, jwtSecret);
+    if (decoded && decoded.email) {
+      const dbUser = await getUserByEmail(decoded.email);
+      if (dbUser) {
+        req.user = dbUser;
+        return next();
+      }
+    }
     req.user = decoded;
     next();
   } catch (err) {
