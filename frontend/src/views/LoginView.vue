@@ -56,11 +56,20 @@
           <input 
             id="login-password"
             v-model="loginPassword"
-            type="password"
+            :type="showLoginPassword ? 'text' : 'password'"
             class="form-control"
             placeholder="••••••••"
             required
           />
+          <button 
+            type="button" 
+            class="toggle-password-btn"
+            @click="showLoginPassword = !showLoginPassword"
+            :title="showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            :aria-label="showLoginPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          >
+            <i :class="showLoginPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+          </button>
         </div>
       </div>
 
@@ -119,11 +128,20 @@
           <input 
             id="reg-password"
             v-model="regPassword"
-            type="password"
+            :type="showRegPassword ? 'text' : 'password'"
             class="form-control"
             placeholder="••••••••"
             required
           />
+          <button 
+            type="button" 
+            class="toggle-password-btn"
+            @click="showRegPassword = !showRegPassword"
+            :title="showRegPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            :aria-label="showRegPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+          >
+            <i :class="showRegPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
+          </button>
         </div>
       </div>
 
@@ -186,11 +204,13 @@ const isRegisterMode = ref(false);
 // Form Inputs
 const loginEmail = ref('');
 const loginPassword = ref('');
+const showLoginPassword = ref(false);
 const loginEmailTouched = ref(false);
 
 const regName = ref('');
 const regEmail = ref('');
 const regPassword = ref('');
+const showRegPassword = ref(false);
 const regEmailTouched = ref(false);
 
 // Email Regex Validation Pattern
@@ -445,7 +465,7 @@ async function handleFormRegister() {
 
 .form-control {
   width: 100%;
-  padding: 11px 14px 11px 38px;
+  padding: 11px 40px 11px 38px;
   font-size: 14px;
   border: 1px solid var(--border-light, #cbd5e1);
   border-radius: 10px;
@@ -453,6 +473,25 @@ async function handleFormRegister() {
   color: #1e293b;
   transition: all 0.2s ease;
   box-sizing: border-box;
+}
+
+.toggle-password-btn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #64748b);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: color 0.2s ease;
+}
+
+.toggle-password-btn:hover {
+  color: var(--primary, #1e3a8a);
 }
 
 .form-control:focus {

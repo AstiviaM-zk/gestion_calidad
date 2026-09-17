@@ -15,7 +15,7 @@ export function sanitizeFullName(name) {
     .join(' ');
 }
 
-// Inicialización de la tabla si no existe (usa estrictamente las columnas originales de la BD: full_name, avatar_url, is_active)
+// Inicialización de la tabla si no existe (usa estrictamente las columnas originales de la BD: full_name, avatar_url, is_active, last_login)
 async function initDb() {
   try {
     await query(`CREATE SCHEMA IF NOT EXISTS qms;`);
@@ -30,9 +30,11 @@ async function initDb() {
         role VARCHAR(50) DEFAULT 'operator',
         is_active BOOLEAN DEFAULT TRUE,
         google_login_enabled BOOLEAN DEFAULT FALSE,
+        last_login TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;`);
   } catch (err) {
     console.warn('⚠️ Base de datos PostgreSQL no disponible o error al verificar tabla qms.users:', err.message);
   }
@@ -58,12 +60,13 @@ function mapRowToUser(row) {
     role: row.role || 'operator',
     status: row.is_active === false ? 'Inactivo' : 'Activo',
     googleLoginEnabled: !!row.google_login_enabled,
+    lastLogin: row.last_login || null,
     createdAt: row.created_at
   };
 }
 
 /**
- * Inserta o actualiza un usuario de Google usando únicamente las columnas de la BD (full_name, avatar_url)
+ * Inserta o actualiza un usuario de Google usando únicamente las columnas de la BD (full_name, avatar_url, last_login)
  */
 export async function upsertUserFromGoogle(googleUser) {
   if (!googleUser || !googleUser.email) return null;
@@ -78,7 +81,8 @@ export async function upsertUserFromGoogle(googleUser) {
         `UPDATE qms.users 
          SET full_name = $1, google_id = COALESCE($2, google_id), 
              avatar_url = COALESCE($3, avatar_url), 
-             google_login_enabled = TRUE, is_active = TRUE
+             google_login_enabled = TRUE, is_active = TRUE,
+             last_login = CURRENT_TIMESTAMP
          WHERE LOWER(email) = $4 
          RETURNING *`,
         [sanitizedName, googleUser.googleId, avatarUrl, email]
@@ -92,8 +96,8 @@ export async function upsertUserFromGoogle(googleUser) {
 
     const insertRes = await query(
       `INSERT INTO qms.users 
-       (google_id, full_name, email, avatar_url, role, is_active, google_login_enabled)
-       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE)
+       (google_id, full_name, email, avatar_url, role, is_active, google_login_enabled, last_login)
+       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, CURRENT_TIMESTAMP)
        RETURNING *`,
       [
         googleUser.googleId,
@@ -111,7 +115,7 @@ export async function upsertUserFromGoogle(googleUser) {
 }
 
 /**
- * Registro de usuario por formulario usando las columnas originales de la BD (full_name, avatar_url)
+ * Registro de usuario por formulario usando las columnas originales de la BD (full_name, avatar_url, last_login)
  */
 export async function registerFormUser({ name, email, password }) {
   const sanitizedName = sanitizeFullName(name);
@@ -132,8 +136,8 @@ export async function registerFormUser({ name, email, password }) {
 
   const insertRes = await query(
     `INSERT INTO qms.users 
-     (google_id, full_name, email, password_hash, avatar_url, role, is_active, google_login_enabled)
-     VALUES (NULL, $1, $2, $3, $4, $5, TRUE, FALSE)
+     (google_id, full_name, email, password_hash, avatar_url, role, is_active, google_login_enabled, last_login)
+     VALUES (NULL, $1, $2, $3, $4, $5, TRUE, FALSE, CURRENT_TIMESTAMP)
      RETURNING *`,
     [
       sanitizedName,
@@ -170,7 +174,15 @@ export async function loginFormUser({ email, password }) {
     throw new Error('Correo electrónico o contraseña incorrectos');
   }
 
-  return mapRowToUser(userRow);
+  const updateRes = await query(
+    `UPDATE qms.users 
+     SET last_login = CURRENT_TIMESTAMP 
+     WHERE id = $1 
+     RETURNING *`,
+    [userRow.id]
+  );
+
+  return mapRowToUser(updateRes.rows[0]);
 }
 
 /**
