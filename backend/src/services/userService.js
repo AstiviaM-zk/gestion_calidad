@@ -84,6 +84,7 @@ function mapRowToUser(row) {
   const nameVal = row.full_name || '';
   const avatarVal = row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal || 'Usuario')}&background=1e3a8a&color=fff`;
   const userRole = resolveRoleName(row);
+  const deptName = row.department_name || (row.department_id ? `Depto. #${row.department_id}` : 'General');
 
   return {
     id: row.id,
@@ -95,9 +96,13 @@ function mapRowToUser(row) {
     picture: avatarVal,
     role: userRole,
     idRole: row.id_role || getRoleIdByName(userRole),
+    departmentId: row.department_id || null,
+    departmentName: deptName,
     permissions: getPermissionsForRole(userRole),
+    isActive: row.is_active !== false,
     status: row.is_active === false ? 'Inactivo' : 'Activo',
     googleLoginEnabled: !!row.google_login_enabled,
+    hasPassword: !!(row.password_hash && row.password_hash.trim().length > 0),
     lastLogin: row.last_login || null,
     createdAt: row.created_at
   };
@@ -222,14 +227,16 @@ export async function loginFormUser({ email, password }) {
 }
 
 /**
- * Obtener todos los usuarios registrados realizando LEFT JOIN con qms.roles
+ * Obtener todos los usuarios activos (is_active = TRUE) realizando LEFT JOIN con qms.roles y qms.departments
  */
 export async function getAllUsers() {
   try {
     const res = await query(
-      `SELECT u.*, r.name as role_name 
+      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
        FROM qms.users u 
        LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
+       LEFT JOIN qms.departments d ON u.department_id = d.id
+       WHERE u.is_active = TRUE
        ORDER BY u.created_at DESC`
     );
     return res.rows.map(mapRowToUser);
@@ -259,15 +266,16 @@ export async function updateUserRole(email, newRole) {
 }
 
 /**
- * Obtener un usuario por correo electrónico realizando LEFT JOIN con qms.roles
+ * Obtener un usuario por correo electrónico realizando LEFT JOIN con qms.roles y qms.departments
  */
 export async function getUserByEmail(email) {
   if (!email) return null;
   try {
     const res = await query(
-      `SELECT u.*, r.name as role_name 
+      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
        FROM qms.users u 
        LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
+       LEFT JOIN qms.departments d ON u.department_id = d.id
        WHERE LOWER(u.email) = $1`, 
       [email.toLowerCase().trim()]
     );

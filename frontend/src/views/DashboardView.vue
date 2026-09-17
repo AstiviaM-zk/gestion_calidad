@@ -53,7 +53,7 @@
           @click="navigate('/dashboard/profile')"
         >
           <i class="fa-solid fa-circle-user"></i>
-          <span>Mi Perfil & Token</span>
+          <span>Mi Perfil</span>
         </button>
       </nav>
 

@@ -22,29 +22,18 @@
     <div class="profile-details-grid">
       <div class="profile-detail-card">
         <div class="detail-label-box">
-          <i class="fa-brands fa-google"></i>
-          <span>Google Subject Identifier (Sub ID)</span>
+          <i class="fa-solid fa-id-card"></i>
+          <span>Identificador de Cuenta (ID)</span>
         </div>
         <span class="detail-value-text">{{ currentUser.googleId || currentUser.id || "N/A" }}</span>
       </div>
 
       <div class="profile-detail-card">
         <div class="detail-label-box">
-          <i class="fa-solid fa-key"></i>
-          <span>Token de Sesión Activa (JWT)</span>
+          <i class="fa-solid fa-building"></i>
+          <span>Departamento / Área</span>
         </div>
-        <div class="token-container">
-          <code class="token-code">{{ currentToken || "Token no disponible" }}</code>
-          <button 
-            type="button" 
-            :class="['btn-copy-token', { copied }]" 
-            title="Copiar Token al portapapeles" 
-            @click="copyToken"
-          >
-            <i :class="copied ? 'fa-solid fa-check' : 'fa-regular fa-copy'"></i>
-            <span>{{ copied ? '¡Copiado!' : 'Copiar' }}</span>
-          </button>
-        </div>
+        <span class="detail-value-text">{{ currentUser.departmentName || "General" }}</span>
       </div>
     </div>
 
