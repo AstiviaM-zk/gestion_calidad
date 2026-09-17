@@ -1,116 +1,215 @@
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Path to JSON database file
-const DATA_DIR = path.join(__dirname, '..', '..', 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// In-memory map loaded from users.json file
-const usersMap = new Map();
-
-// Load existing users from disk on startup
-function loadUsersFromDisk() {
-  try {
-    if (fs.existsSync(USERS_FILE)) {
-      const rawData = fs.readFileSync(USERS_FILE, 'utf-8');
-      const usersList = JSON.parse(rawData);
-      usersList.forEach(user => {
-        usersMap.set(user.email, user);
-      });
-      console.log(`📂 Base de datos de usuarios cargada desde ${USERS_FILE} (${usersMap.size} usuarios registrados)`);
-    }
-  } catch (err) {
-    console.error('Error cargando base de datos de usuarios:', err.message);
-  }
-}
-
-// Save users to disk
-function saveUsersToDisk() {
-  try {
-    const usersList = Array.from(usersMap.values());
-    fs.writeFileSync(USERS_FILE, JSON.stringify(usersList, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Error guardando base de datos de usuarios en disco:', err.message);
-  }
-}
-
-// Initial load
-loadUsersFromDisk();
+import { query } from '../config/db.js';
+import bcrypt from 'bcryptjs';
 
 /**
- * Upserts user into the real system user store upon Google login
- * @param {Object} googleUser 
- * @returns {Object} user record
+ * Formatea el nombre completo a Title Case con un solo espacio entre palabras
+ * Ejemplo: "  cARLOS   mAriANo   pERez " -> "Carlos Mariano Perez"
  */
-export function upsertUserFromGoogle(googleUser) {
-  if (!googleUser || !googleUser.email) return null;
+export function sanitizeFullName(name) {
+  if (!name || typeof name !== 'string') return '';
+  const cleaned = name.trim().replace(/\s+/g, ' ');
+  return cleaned
+    .toLowerCase()
+    .split(' ')
+    .map(word => (word ? word.charAt(0).toUpperCase() + word.slice(1) : ''))
+    .join(' ');
+}
 
-  const email = googleUser.email;
-  const existing = usersMap.get(email);
-  const now = new Date().toISOString();
-
-  if (existing) {
-    existing.name = googleUser.name || existing.name;
-    existing.givenName = googleUser.givenName || existing.givenName;
-    existing.familyName = googleUser.familyName || existing.familyName;
-    existing.picture = googleUser.picture || existing.picture;
-    existing.googleId = googleUser.googleId || existing.googleId;
-    existing.lastLogin = now;
-    existing.status = 'Activo';
-    usersMap.set(email, existing);
-    saveUsersToDisk();
-    return existing;
+// Inicialización de la tabla si no existe (usa estrictamente las columnas originales de la BD: full_name, avatar_url, is_active, last_login)
+async function initDb() {
+  try {
+    await query(`CREATE SCHEMA IF NOT EXISTS qms;`);
+    await query(`
+      CREATE TABLE IF NOT EXISTS qms.users (
+        id SERIAL PRIMARY KEY,
+        google_id VARCHAR(100),
+        full_name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash TEXT,
+        avatar_url TEXT,
+        role VARCHAR(50) DEFAULT 'operator',
+        is_active BOOLEAN DEFAULT TRUE,
+        google_login_enabled BOOLEAN DEFAULT FALSE,
+        last_login TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+    await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;`);
+  } catch (err) {
+    console.warn('⚠️ Base de datos PostgreSQL no disponible o error al verificar tabla qms.users:', err.message);
   }
+}
 
-  // First user to log in gets 'admin_sgc' role, subsequent users get 'operator'
-  const isFirstUser = usersMap.size === 0;
-  const role = isFirstUser ? 'admin_sgc' : 'operator';
+initDb();
 
-  const newUser = {
-    id: `USR-${(usersMap.size + 1).toString().padStart(3, '0')}`,
-    googleId: googleUser.googleId,
-    name: googleUser.name,
-    givenName: googleUser.givenName || googleUser.name,
-    familyName: googleUser.familyName || '',
-    email: googleUser.email,
-    picture: googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(googleUser.name)}&background=4f46e5&color=fff`,
-    role: role,
-    status: 'Activo',
-    createdAt: now,
-    lastLogin: now
+/**
+ * Mapea la fila de la base de datos (con full_name y avatar_url) al objeto de usuario del sistema
+ */
+function mapRowToUser(row) {
+  const nameVal = row.full_name || '';
+  const avatarVal = row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal || 'Usuario')}&background=1e3a8a&color=fff`;
+
+  return {
+    id: row.id,
+    googleId: row.google_id || null,
+    name: nameVal,
+    givenName: nameVal,
+    familyName: '',
+    email: row.email,
+    picture: avatarVal,
+    role: row.role || 'operator',
+    status: row.is_active === false ? 'Inactivo' : 'Activo',
+    googleLoginEnabled: !!row.google_login_enabled,
+    lastLogin: row.last_login || null,
+    createdAt: row.created_at
   };
-
-  usersMap.set(email, newUser);
-  saveUsersToDisk();
-  return newUser;
 }
 
 /**
- * Update a user's role
+ * Inserta o actualiza un usuario de Google usando únicamente las columnas de la BD (full_name, avatar_url, last_login)
  */
-export function updateUserRole(email, newRole) {
-  const user = usersMap.get(email);
-  if (user) {
-    user.role = newRole;
-    usersMap.set(email, user);
-    saveUsersToDisk();
-    return user;
+export async function upsertUserFromGoogle(googleUser) {
+  if (!googleUser || !googleUser.email) return null;
+  const sanitizedName = sanitizeFullName(googleUser.name || 'Usuario Google');
+  const email = googleUser.email.toLowerCase().trim();
+  const avatarUrl = googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
+
+  try {
+    const existingRes = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [email]);
+    if (existingRes.rows.length > 0) {
+      const updateRes = await query(
+        `UPDATE qms.users 
+         SET full_name = $1, google_id = COALESCE($2, google_id), 
+             avatar_url = COALESCE($3, avatar_url), 
+             google_login_enabled = TRUE, is_active = TRUE,
+             last_login = CURRENT_TIMESTAMP
+         WHERE LOWER(email) = $4 
+         RETURNING *`,
+        [sanitizedName, googleUser.googleId, avatarUrl, email]
+      );
+      return mapRowToUser(updateRes.rows[0]);
+    }
+
+    const countRes = await query('SELECT COUNT(*) FROM qms.users');
+    const userCount = parseInt(countRes.rows[0].count, 10);
+    const role = userCount === 0 ? 'admin_sgc' : 'operator';
+
+    const insertRes = await query(
+      `INSERT INTO qms.users 
+       (google_id, full_name, email, avatar_url, role, is_active, google_login_enabled, last_login)
+       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, CURRENT_TIMESTAMP)
+       RETURNING *`,
+      [
+        googleUser.googleId,
+        sanitizedName,
+        email,
+        avatarUrl,
+        role
+      ]
+    );
+    return mapRowToUser(insertRes.rows[0]);
+  } catch (err) {
+    console.error('Error al guardar usuario de Google en PostgreSQL:', err.message);
+    throw err;
   }
-  return null;
 }
 
 /**
- * Get all real users registered in the system
+ * Registro de usuario por formulario usando las columnas originales de la BD (full_name, avatar_url, last_login)
  */
-export function getAllUsers() {
-  return Array.from(usersMap.values());
+export async function registerFormUser({ name, email, password }) {
+  const sanitizedName = sanitizeFullName(name);
+  const normalizedEmail = email.toLowerCase().trim();
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
+
+  const existingRes = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [normalizedEmail]);
+  if (existingRes.rows.length > 0) {
+    throw new Error('El correo electrónico ya se encuentra registrado en el sistema.');
+  }
+
+  const salt = await bcrypt.genSalt(10);
+  const passwordHash = await bcrypt.hash(password, salt);
+
+  const countRes = await query('SELECT COUNT(*) FROM qms.users');
+  const userCount = parseInt(countRes.rows[0].count, 10);
+  const role = userCount === 0 ? 'admin_sgc' : 'operator';
+
+  const insertRes = await query(
+    `INSERT INTO qms.users 
+     (google_id, full_name, email, password_hash, avatar_url, role, is_active, google_login_enabled, last_login)
+     VALUES (NULL, $1, $2, $3, $4, $5, TRUE, FALSE, CURRENT_TIMESTAMP)
+     RETURNING *`,
+    [
+      sanitizedName,
+      normalizedEmail,
+      passwordHash,
+      avatarUrl,
+      role
+    ]
+  );
+
+  return mapRowToUser(insertRes.rows[0]);
+}
+
+/**
+ * Inicio de sesión por formulario utilizando email y contraseña
+ */
+export async function loginFormUser({ email, password }) {
+  const normalizedEmail = email.toLowerCase().trim();
+  const res = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [normalizedEmail]);
+  if (res.rows.length === 0) {
+    throw new Error('Correo electrónico o contraseña incorrectos');
+  }
+
+  const userRow = res.rows[0];
+  if (!userRow.password_hash) {
+    if (userRow.google_login_enabled) {
+      throw new Error('Esta cuenta fue creada con inicio de sesión de Google. Por favor inicia sesión usando el botón de Google.');
+    }
+    throw new Error('La cuenta no tiene contraseña configurada.');
+  }
+
+  const isMatch = await bcrypt.compare(password, userRow.password_hash);
+  if (!isMatch) {
+    throw new Error('Correo electrónico o contraseña incorrectos');
+  }
+
+  const updateRes = await query(
+    `UPDATE qms.users 
+     SET last_login = CURRENT_TIMESTAMP 
+     WHERE id = $1 
+     RETURNING *`,
+    [userRow.id]
+  );
+
+  return mapRowToUser(updateRes.rows[0]);
+}
+
+/**
+ * Obtener todos los usuarios registrados
+ */
+export async function getAllUsers() {
+  try {
+    const res = await query('SELECT * FROM qms.users ORDER BY created_at DESC');
+    return res.rows.map(mapRowToUser);
+  } catch (err) {
+    console.error('Error al obtener usuarios de PostgreSQL:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Actualizar rol de usuario
+ */
+export async function updateUserRole(email, newRole) {
+  try {
+    const res = await query('UPDATE qms.users SET role = $1 WHERE LOWER(email) = $2 RETURNING *', [newRole, email.toLowerCase().trim()]);
+    if (res.rows.length > 0) {
+      return mapRowToUser(res.rows[0]);
+    }
+    return null;
+  } catch (err) {
+    console.error('Error actualizando rol:', err.message);
+    return null;
+  }
 }

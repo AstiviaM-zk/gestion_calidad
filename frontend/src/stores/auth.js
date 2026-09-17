@@ -6,7 +6,7 @@ export const useAuthStore = defineStore('auth', {
     user: JSON.parse(sessionStorage.getItem('qms_user')) || null,
     token: sessionStorage.getItem('qms_token') || '',
     isAuthenticated: !!sessionStorage.getItem('qms_token'),
-    googleClientId: '',
+    googleClientId: '606541311192-nta8lgacqaaofml43jci2vcokumom3mp.apps.googleusercontent.com',
     statusMessage: '',
     statusType: 'info',
     isLoading: false
@@ -20,7 +20,65 @@ export const useAuthStore = defineStore('auth', {
           this.googleClientId = data.googleClientId;
         }
       } catch (err) {
-        console.error('Error cargando configuración de autenticación:', err);
+        console.warn('Backend /auth/config no respondió, usando GOOGLE_CLIENT_ID por defecto:', err.message);
+      }
+    },
+
+    async loginWithForm(email, password) {
+      this.isLoading = true;
+      this.statusMessage = 'Iniciando sesión...';
+      this.statusType = 'info';
+
+      try {
+        const { data } = await api.post('/auth/login', { email, password });
+        if (data.success) {
+          this.token = data.token;
+          this.user = data.user;
+          this.isAuthenticated = true;
+          sessionStorage.setItem('qms_token', data.token);
+          sessionStorage.setItem('qms_user', JSON.stringify(data.user));
+          this.statusMessage = '';
+          return true;
+        } else {
+          this.statusMessage = data.message || 'Error en inicio de sesión';
+          this.statusType = 'error';
+          return false;
+        }
+      } catch (err) {
+        this.statusMessage = err.response?.data?.message || 'Error de conexión al iniciar sesión. ¿El servidor backend está activo?';
+        this.statusType = 'error';
+        return false;
+      } finally {
+        this.isLoading = false;
+      }
+    },
+
+    async registerWithForm(name, email, password) {
+      this.isLoading = true;
+      this.statusMessage = 'Creando cuenta...';
+      this.statusType = 'info';
+
+      try {
+        const { data } = await api.post('/auth/register', { name, email, password });
+        if (data.success) {
+          this.token = data.token;
+          this.user = data.user;
+          this.isAuthenticated = true;
+          sessionStorage.setItem('qms_token', data.token);
+          sessionStorage.setItem('qms_user', JSON.stringify(data.user));
+          this.statusMessage = '';
+          return true;
+        } else {
+          this.statusMessage = data.message || 'Error en registro';
+          this.statusType = 'error';
+          return false;
+        }
+      } catch (err) {
+        this.statusMessage = err.response?.data?.message || 'Error al registrar usuario';
+        this.statusType = 'error';
+        return false;
+      } finally {
+        this.isLoading = false;
       }
     },
 
@@ -47,32 +105,12 @@ export const useAuthStore = defineStore('auth', {
         }
       } catch (err) {
         console.error('Error en login de Google:', err);
-        this.statusMessage = err.response?.data?.message || 'Error de conexión con el servidor backend';
+        this.statusMessage = err.response?.data?.message || 'Error de conexión con el servidor backend (Puerto 3001)';
         this.statusType = 'error';
         return false;
       } finally {
         this.isLoading = false;
       }
-    },
-
-    demoLogin() {
-      const demoUser = {
-        id: 'USR-001',
-        googleId: '1098234710928374',
-        name: 'Ing. Carlos Mendoza (Demostración)',
-        email: 'carlos.mendoza@institucion.gob.mx',
-        picture: 'https://ui-avatars.com/api/?name=Carlos+Mendoza&background=1e3a8a&color=fff',
-        role: 'Administrador',
-        status: 'Activo',
-        lastLogin: new Date().toISOString()
-      };
-      const demoToken = 'demo-jwt-token-vue3';
-
-      this.token = demoToken;
-      this.user = demoUser;
-      this.isAuthenticated = true;
-      sessionStorage.setItem('qms_token', demoToken);
-      sessionStorage.setItem('qms_user', JSON.stringify(demoUser));
     },
 
     logout() {
