@@ -6,6 +6,7 @@
         <div class="sidebar-user-info">
           <div class="sidebar-user-name">{{ user.name }}</div>
           <div class="sidebar-user-email">{{ user.email }}</div>
+          <span :class="['user-role-badge', roleBadgeClass]">{{ roleLabel }}</span>
         </div>
       </div>
 
@@ -28,6 +29,7 @@
         </button>
 
         <button 
+          v-if="canManageUsers"
           :class="['nav-item', { active: isTabActive('/dashboard/users') }]"
           @click="navigate('/dashboard/users')"
         >
@@ -37,6 +39,7 @@
         </button>
 
         <button 
+          v-if="canManageRoles"
           :class="['nav-item', { active: isTabActive('/dashboard/roles') }]"
           @click="navigate('/dashboard/roles')"
         >
@@ -84,6 +87,28 @@ const userStore = useUserStore();
 const roleStore = useRoleStore();
 
 const user = computed(() => authStore.user);
+const userRole = computed(() => user.value?.role || 'operator');
+
+const canManageUsers = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
+const canManageRoles = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
+
+const roleLabel = computed(() => {
+  switch (userRole.value) {
+    case 'admin_sgc': return 'Administrador';
+    case 'leader': return 'Líder de Área';
+    case 'auditor': return 'Auditor';
+    default: return 'Operativo';
+  }
+});
+
+const roleBadgeClass = computed(() => {
+  switch (userRole.value) {
+    case 'admin_sgc': return 'badge-admin';
+    case 'leader': return 'badge-leader';
+    case 'auditor': return 'badge-auditor';
+    default: return 'badge-operator';
+  }
+});
 
 const userAvatar = computed(() => {
   return user.value?.picture || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.value?.name || 'User') + '&background=1e3a8a&color=fff';
@@ -106,10 +131,13 @@ function onAvatarError(e) {
   e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.value?.name || 'User') + '&background=1e3a8a&color=fff';
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await authStore.fetchCurrentUser();
   documentStore.fetchAll();
-  userStore.fetchUsers();
-  roleStore.fetchRoles();
+  if (canManageUsers.value) {
+    userStore.fetchUsers();
+    roleStore.fetchRoles();
+  }
 });
 </script>
 
@@ -170,6 +198,22 @@ onMounted(() => {
   max-width: 150px;
   white-space: nowrap;
 }
+
+.user-role-badge {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-admin { background: #eff6ff; color: #1e3a8a; border: 1px solid #bfdbfe; }
+.badge-leader { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+.badge-auditor { background: #fefce8; color: #854d0e; border: 1px solid #fef08a; }
+.badge-operator { background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; }
 
 .sidebar-nav {
   display: flex;

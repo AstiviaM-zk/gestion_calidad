@@ -1,7 +1,7 @@
 import express from 'express';
 import { getAllRoles, createRole } from '../services/roleService.js';
 import { updateUserRole } from '../services/userService.js';
-import { authenticateToken } from '../middleware/authMiddleware.js';
+import { authenticateToken, requireRole } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -19,9 +19,9 @@ router.get('/roles', authenticateToken, (req, res) => {
 
 /**
  * POST /api/roles
- * Creates a new custom role
+ * Creates a new custom role (Exclusivo Administradores)
  */
-router.post('/roles', authenticateToken, (req, res) => {
+router.post('/roles', authenticateToken, requireRole('admin_sgc'), (req, res) => {
   try {
     const { name, description, permissions } = req.body;
 
@@ -48,9 +48,9 @@ router.post('/roles', authenticateToken, (req, res) => {
 
 /**
  * PUT /api/users/:email/role
- * Updates an authenticated user's role
+ * Updates an authenticated user's role (Exclusivo Administradores)
  */
-router.put('/users/:email/role', authenticateToken, (req, res) => {
+router.put('/users/:email/role', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
   const { email } = req.params;
   const { role } = req.body;
 
@@ -61,7 +61,7 @@ router.put('/users/:email/role', authenticateToken, (req, res) => {
     });
   }
 
-  const updatedUser = updateUserRole(email, role);
+  const updatedUser = await updateUserRole(email, role);
   if (!updatedUser) {
     return res.status(404).json({
       success: false,

@@ -39,14 +39,25 @@
         </div>
       </div>
 
-      <div class="kpi-card shadow-card">
+      <div v-if="authStore.hasRole('admin_sgc')" class="kpi-card shadow-card">
         <div class="kpi-icon icon-purple">
           <i class="fa-solid fa-users"></i>
         </div>
         <div class="kpi-info">
-          <span class="kpi-label">Usuarios Autenticados</span>
+          <span class="kpi-label">Usuarios Registrados</span>
           <span class="kpi-value">{{ userStore.users.length }}</span>
-          <span class="kpi-subtext text-purple"><i class="fa-solid fa-user-check"></i> Google OAuth</span>
+          <span class="kpi-subtext text-purple"><i class="fa-solid fa-user-check"></i> Gestión de Acceso</span>
+        </div>
+      </div>
+
+      <div v-else class="kpi-card shadow-card">
+        <div class="kpi-icon icon-purple">
+          <i class="fa-solid fa-id-card"></i>
+        </div>
+        <div class="kpi-info">
+          <span class="kpi-label">Nivel de Acceso</span>
+          <span class="kpi-value">{{ roleLabel }}</span>
+          <span class="kpi-subtext text-purple"><i class="fa-solid fa-shield-halved"></i> Rol Asignado</span>
         </div>
       </div>
     </div>
@@ -70,9 +81,20 @@ const userName = computed(() => {
   return authStore.user?.givenName || authStore.user?.name || 'Usuario';
 });
 
+const roleLabel = computed(() => {
+  switch (authStore.userRole) {
+    case 'admin_sgc': return 'Administrador';
+    case 'leader': return 'Líder de Área';
+    case 'auditor': return 'Auditor';
+    default: return 'Operativo';
+  }
+});
+
 onMounted(() => {
   documentStore.fetchAll();
-  userStore.fetchUsers();
+  if (authStore.hasRole('admin_sgc')) {
+    userStore.fetchUsers();
+  }
 });
 </script>
 
