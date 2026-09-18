@@ -2,8 +2,27 @@
   <div class="panel-section">
     <div class="section-header">
       <div>
-        <h3 class="section-title"><i class="fa-solid fa-users-gear"></i> Usuarios Autenticados y Asignación de Roles</h3>
-        <p class="section-subtitle">Asigna y modifica roles para los usuarios activos en el sistema QMS</p>
+        <div class="title-with-badge">
+          <h3 class="section-title"><i class="fa-solid fa-users-gear"></i> Usuarios en sistema</h3>
+          <span class="user-count-badge" :title="searchQuery ? 'Usuarios encontrados' : 'Total de usuarios activos'">
+            <i class="fa-solid fa-user-group"></i> {{ userList.length }} {{ userList.length === 1 ? 'usuario' : 'usuarios' }}
+          </span>
+        </div>
+        <p class="section-subtitle">Aquí puedes administrar los usuarios con acceso al sistema QMS</p>
+      </div>
+
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input 
+          v-model="searchQuery" 
+          type="text" 
+          class="search-input" 
+          placeholder="Buscar por nombre o correo..."
+          aria-label="Buscar usuario por nombre o correo"
+        />
+        <button v-if="searchQuery" type="button" class="clear-search-btn" @click="searchQuery = ''" title="Limpiar búsqueda">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
     </div>
 
@@ -13,10 +32,9 @@
           <tr>
             <th>Usuario</th>
             <th>Departamento</th>
-            <th>Acceso Habilitado</th>
-            <th>Rol Asignado</th>
+            <th>Acceso</th>
+            <th>Rol </th>
             <th>Último Acceso</th>
-            <th>Estado</th>
           </tr>
         </thead>
         <tbody>
@@ -67,17 +85,15 @@
               </div>
             </td>
             <td class="text-subtle text-sm">{{ formatDate(user.lastLogin) }}</td>
-            <td>
-              <span :class="['status-pill', user.status === 'Activo' ? 'status-approved' : 'status-pending']">
-                <i :class="user.status === 'Activo' ? 'fa-solid fa-circle-check' : 'fa-solid fa-user-clock'"></i> {{ user.status }}
-              </span>
-            </td>
           </tr>
           <tr v-if="userList.length === 0">
-            <td colspan="6" class="text-center empty-state">
-              <i class="fa-solid fa-user-xmark empty-icon"></i>
-              <p>No se encontraron usuarios activos en el sistema.</p>
-              <span class="text-sm text-subtle">Los usuarios registrados con estado activo aparecerán aquí.</span>
+            <td colspan="5" class="text-center empty-state">
+              <i class="fa-solid fa-magnifying-glass empty-icon" v-if="searchQuery"></i>
+              <i class="fa-solid fa-user-xmark empty-icon" v-else></i>
+              <p v-if="searchQuery">No se encontraron usuarios que coincidan con "<strong>{{ searchQuery }}</strong>".</p>
+              <p v-else>No se encontraron usuarios activos en el sistema.</p>
+              <span class="text-sm text-subtle" v-if="searchQuery">Intenta buscar con otro nombre o correo electrónico.</span>
+              <span class="text-sm text-subtle" v-else>Los usuarios registrados con estado activo aparecerán aquí.</span>
             </td>
           </tr>
         </tbody>
@@ -138,6 +154,9 @@ const pendingUser = ref(null);
 const pendingNewRole = ref('');
 const previousUserRole = ref('');
 
+// Filtro de búsqueda por nombre o correo
+const searchQuery = ref('');
+
 onMounted(() => {
   if (!props.users) userStore.fetchUsers();
   if (!props.roles) roleStore.fetchRoles();
@@ -145,7 +164,18 @@ onMounted(() => {
 
 const userList = computed(() => {
   const rawList = props.users || userStore.users;
-  return rawList.filter(u => u.isActive !== false && u.status !== 'Inactivo');
+  const activeList = rawList.filter(u => u.isActive !== false && u.status !== 'Inactivo');
+
+  if (!searchQuery.value || !searchQuery.value.trim()) {
+    return activeList;
+  }
+
+  const q = searchQuery.value.toLowerCase().trim();
+  return activeList.filter(u => {
+    const nameMatch = u.name && u.name.toLowerCase().includes(q);
+    const emailMatch = u.email && u.email.toLowerCase().includes(q);
+    return nameMatch || emailMatch;
+  });
 });
 
 const roleOptions = computed(() => {
@@ -235,6 +265,87 @@ async function confirmRoleChange() {
   justify-content: space-between;
   margin-bottom: 14px;
   flex-shrink: 0;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.user-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 58, 138, 0.08);
+  color: var(--primary, #1e3a8a);
+  border: 1px solid rgba(30, 58, 138, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.user-count-badge i {
+  font-size: 11px;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 260px;
+  max-width: 320px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 34px 8px 34px;
+  font-size: 13px;
+  border: 1px solid var(--border-light, #cbd5e1);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-main, #1e293b);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--primary, #1e3a8a);
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.clear-search-btn:hover {
+  color: var(--primary, #1e3a8a);
+  background: #f1f5f9;
 }
 
 .section-title {
