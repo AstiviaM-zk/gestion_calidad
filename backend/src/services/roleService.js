@@ -78,6 +78,26 @@ export function getAllRoles() {
 }
 
 /**
+ * Get role object by role code/name
+ */
+export function getRoleByCode(roleCode) {
+  if (!roleCode) return null;
+  return rolesMap.get(roleCode) || null;
+}
+
+/**
+ * Get permission keys array for a given role
+ */
+export function getPermissionsForRole(roleCode) {
+  const roleObj = getRoleByCode(roleCode);
+  if (!roleObj || !roleObj.permissions) {
+    // Default fallback for unknown roles: operator basic permissions
+    return ['templates:read_viewer', 'evidences:upload'];
+  }
+  return roleObj.permissions.map(p => typeof p === 'string' ? p : p.key);
+}
+
+/**
  * Create a new custom role
  */
 export function createRole(roleData) {

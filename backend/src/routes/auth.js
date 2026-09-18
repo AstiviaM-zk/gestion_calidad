@@ -1,7 +1,7 @@
 import express from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
-import { upsertUserFromGoogle, registerFormUser, loginFormUser } from '../services/userService.js';
+import { upsertUserFromGoogle, registerFormUser, loginFormUser, getUserByEmail } from '../services/userService.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
@@ -167,13 +167,30 @@ router.post('/google', async (req, res) => {
 
 /**
  * GET /api/auth/me
- * Validates session JWT token and returns current user details
+ * Validates session JWT token and returns current user details directly from PostgreSQL with a fresh token
  */
-router.get('/me', authenticateToken, (req, res) => {
-  return res.json({
-    success: true,
-    user: req.user
-  });
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await getUserByEmail(req.user.email);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuario no encontrado en la base de datos'
+      });
+    }
+    const jwtSecret = process.env.JWT_SECRET || 'default_secret';
+    const token = jwt.sign(user, jwtSecret, { expiresIn: '7d' });
+    return res.json({
+      success: true,
+      user,
+      token
+    });
+  } catch (err) {
+    return res.json({
+      success: true,
+      user: req.user
+    });
+  }
 });
 
 export default router;

@@ -35,12 +35,14 @@ const routes = [
       {
         path: 'users',
         name: 'dashboard-users',
-        component: () => import('../components/UserList.vue')
+        component: () => import('../components/UserList.vue'),
+        meta: { allowedRoles: ['admin_sgc'] }
       },
       {
         path: 'roles',
         name: 'dashboard-roles',
-        component: () => import('../components/RoleManager.vue')
+        component: () => import('../components/RoleManager.vue'),
+        meta: { allowedRoles: ['admin_sgc'] }
       },
       {
         path: 'profile',
@@ -65,13 +67,21 @@ router.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   const isAuthenticated = authStore.isAuthenticated;
 
-  if (to.meta.requiresAuth && !isAuthenticated) {
-    next('/login');
-  } else if (to.meta.requiresGuest && isAuthenticated) {
-    next('/dashboard/overview');
-  } else {
-    next();
+  if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
+    return next('/login');
+  } 
+  
+  if (to.matched.some(record => record.meta.requiresGuest) && isAuthenticated) {
+    return next('/dashboard/overview');
   }
+
+  // Validación de acceso por rol a nivel de ruta
+  const roleProtected = to.matched.find(record => record.meta && record.meta.allowedRoles);
+  if (roleProtected && !authStore.hasRole(roleProtected.meta.allowedRoles)) {
+    return next('/dashboard/overview');
+  }
+
+  next();
 });
 
 export default router;

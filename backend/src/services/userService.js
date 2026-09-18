@@ -1,5 +1,6 @@
 import { query } from '../config/db.js';
 import bcrypt from 'bcryptjs';
+import { getPermissionsForRole } from './roleService.js';
 
 /**
  * Formatea el nombre completo a Title Case con un solo espacio entre palabras
@@ -15,7 +16,7 @@ export function sanitizeFullName(name) {
     .join(' ');
 }
 
-// Inicialización de la tabla si no existe (usa estrictamente las columnas originales de la BD: full_name, avatar_url, is_active, last_login)
+// Inicialización de la tabla si no existe
 async function initDb() {
   try {
     await query(`CREATE SCHEMA IF NOT EXISTS qms;`);
@@ -27,7 +28,7 @@ async function initDb() {
         email VARCHAR(255) UNIQUE NOT NULL,
         password_hash TEXT,
         avatar_url TEXT,
-        role VARCHAR(50) DEFAULT 'operator',
+        id_role BIGINT DEFAULT 3,
         is_active BOOLEAN DEFAULT TRUE,
         google_login_enabled BOOLEAN DEFAULT FALSE,
         last_login TIMESTAMPTZ,
@@ -35,6 +36,7 @@ async function initDb() {
       );
     `);
     await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;`);
+    await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS id_role BIGINT DEFAULT 3;`);
   } catch (err) {
     console.warn('⚠️ Base de datos PostgreSQL no disponible o error al verificar tabla qms.users:', err.message);
   }
@@ -43,11 +45,46 @@ async function initDb() {
 initDb();
 
 /**
- * Mapea la fila de la base de datos (con full_name y avatar_url) al objeto de usuario del sistema
+ * Resuelve el nombre del rol a partir de role_name o del campo FK id_role (1=admin_sgc, 2=leader, 3=operator, 4=auditor)
+ */
+function resolveRoleName(row) {
+  if (row.role_name) return row.role_name;
+  if (row.role && typeof row.role === 'string' && isNaN(row.role)) return row.role;
+
+  const roleIdStr = String(row.id_role !== undefined && row.id_role !== null ? row.id_role : (row.role || ''));
+  switch (roleIdStr) {
+    case '1': return 'admin_sgc';
+    case '2': return 'leader';
+    case '3': return 'operator';
+    case '4': return 'auditor';
+    default: return 'operator';
+  }
+}
+
+/**
+ * Mapea el nombre del rol al ID numérico en la tabla qms.roles
+ */
+function getRoleIdByName(roleName) {
+  if (!roleName) return 3;
+  if (!isNaN(roleName)) return parseInt(roleName, 10);
+  switch (roleName.toLowerCase().trim()) {
+    case 'admin_sgc':
+    case 'admin': return 1;
+    case 'leader': return 2;
+    case 'operator': return 3;
+    case 'auditor': return 4;
+    default: return 3;
+  }
+}
+
+/**
+ * Mapea la fila de la base de datos al objeto de usuario del sistema
  */
 function mapRowToUser(row) {
   const nameVal = row.full_name || '';
   const avatarVal = row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal || 'Usuario')}&background=1e3a8a&color=fff`;
+  const userRole = resolveRoleName(row);
+  const deptName = row.department_name || (row.department_id ? `Depto. #${row.department_id}` : 'General');
 
   return {
     id: row.id,
@@ -57,16 +94,22 @@ function mapRowToUser(row) {
     familyName: '',
     email: row.email,
     picture: avatarVal,
-    role: row.role || 'operator',
+    role: userRole,
+    idRole: row.id_role || getRoleIdByName(userRole),
+    departmentId: row.department_id || null,
+    departmentName: deptName,
+    permissions: getPermissionsForRole(userRole),
+    isActive: row.is_active !== false,
     status: row.is_active === false ? 'Inactivo' : 'Activo',
     googleLoginEnabled: !!row.google_login_enabled,
+    hasPassword: !!(row.password_hash && row.password_hash.trim().length > 0),
     lastLogin: row.last_login || null,
     createdAt: row.created_at
   };
 }
 
 /**
- * Inserta o actualiza un usuario de Google usando únicamente las columnas de la BD (full_name, avatar_url, last_login)
+ * Inserta o actualiza un usuario de Google usando id_role
  */
 export async function upsertUserFromGoogle(googleUser) {
   if (!googleUser || !googleUser.email) return null;
@@ -75,39 +118,38 @@ export async function upsertUserFromGoogle(googleUser) {
   const avatarUrl = googleUser.picture || `https://ui-avatars.com/api/?name=${encodeURIComponent(sanitizedName)}&background=1e3a8a&color=fff`;
 
   try {
-    const existingRes = await query('SELECT * FROM qms.users WHERE LOWER(email) = $1', [email]);
-    if (existingRes.rows.length > 0) {
-      const updateRes = await query(
+    const existingUser = await getUserByEmail(email);
+    if (existingUser) {
+      await query(
         `UPDATE qms.users 
          SET full_name = $1, google_id = COALESCE($2, google_id), 
              avatar_url = COALESCE($3, avatar_url), 
              google_login_enabled = TRUE, is_active = TRUE,
              last_login = CURRENT_TIMESTAMP
-         WHERE LOWER(email) = $4 
-         RETURNING *`,
+         WHERE LOWER(email) = $4`,
         [sanitizedName, googleUser.googleId, avatarUrl, email]
       );
-      return mapRowToUser(updateRes.rows[0]);
+      return getUserByEmail(email);
     }
 
     const countRes = await query('SELECT COUNT(*) FROM qms.users');
     const userCount = parseInt(countRes.rows[0].count, 10);
-    const role = userCount === 0 ? 'admin_sgc' : 'operator';
+    const roleName = userCount === 0 ? 'admin_sgc' : 'operator';
+    const roleId = getRoleIdByName(roleName);
 
-    const insertRes = await query(
+    await query(
       `INSERT INTO qms.users 
-       (google_id, full_name, email, avatar_url, role, is_active, google_login_enabled, last_login)
-       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, CURRENT_TIMESTAMP)
-       RETURNING *`,
+       (google_id, full_name, email, avatar_url, id_role, is_active, google_login_enabled, last_login)
+       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, CURRENT_TIMESTAMP)`,
       [
         googleUser.googleId,
         sanitizedName,
         email,
         avatarUrl,
-        role
+        roleId
       ]
     );
-    return mapRowToUser(insertRes.rows[0]);
+    return getUserByEmail(email);
   } catch (err) {
     console.error('Error al guardar usuario de Google en PostgreSQL:', err.message);
     throw err;
@@ -115,7 +157,7 @@ export async function upsertUserFromGoogle(googleUser) {
 }
 
 /**
- * Registro de usuario por formulario usando las columnas originales de la BD (full_name, avatar_url, last_login)
+ * Registro de usuario por formulario usando id_role
  */
 export async function registerFormUser({ name, email, password }) {
   const sanitizedName = sanitizeFullName(name);
@@ -132,23 +174,23 @@ export async function registerFormUser({ name, email, password }) {
 
   const countRes = await query('SELECT COUNT(*) FROM qms.users');
   const userCount = parseInt(countRes.rows[0].count, 10);
-  const role = userCount === 0 ? 'admin_sgc' : 'operator';
+  const roleName = userCount === 0 ? 'admin_sgc' : 'operator';
+  const roleId = getRoleIdByName(roleName);
 
-  const insertRes = await query(
+  await query(
     `INSERT INTO qms.users 
-     (google_id, full_name, email, password_hash, avatar_url, role, is_active, google_login_enabled, last_login)
-     VALUES (NULL, $1, $2, $3, $4, $5, TRUE, FALSE, CURRENT_TIMESTAMP)
-     RETURNING *`,
+     (google_id, full_name, email, password_hash, avatar_url, id_role, is_active, google_login_enabled, last_login)
+     VALUES (NULL, $1, $2, $3, $4, $5, TRUE, FALSE, CURRENT_TIMESTAMP)`,
     [
       sanitizedName,
       normalizedEmail,
       passwordHash,
       avatarUrl,
-      role
+      roleId
     ]
   );
 
-  return mapRowToUser(insertRes.rows[0]);
+  return getUserByEmail(normalizedEmail);
 }
 
 /**
@@ -174,23 +216,29 @@ export async function loginFormUser({ email, password }) {
     throw new Error('Correo electrónico o contraseña incorrectos');
   }
 
-  const updateRes = await query(
+  await query(
     `UPDATE qms.users 
      SET last_login = CURRENT_TIMESTAMP 
-     WHERE id = $1 
-     RETURNING *`,
+     WHERE id = $1`,
     [userRow.id]
   );
 
-  return mapRowToUser(updateRes.rows[0]);
+  return getUserByEmail(normalizedEmail);
 }
 
 /**
- * Obtener todos los usuarios registrados
+ * Obtener todos los usuarios activos (is_active = TRUE) realizando LEFT JOIN con qms.roles y qms.departments
  */
 export async function getAllUsers() {
   try {
-    const res = await query('SELECT * FROM qms.users ORDER BY created_at DESC');
+    const res = await query(
+      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
+       FROM qms.users u 
+       LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
+       LEFT JOIN qms.departments d ON u.department_id = d.id
+       WHERE u.is_active = TRUE
+       ORDER BY u.created_at DESC`
+    );
     return res.rows.map(mapRowToUser);
   } catch (err) {
     console.error('Error al obtener usuarios de PostgreSQL:', err.message);
@@ -199,17 +247,44 @@ export async function getAllUsers() {
 }
 
 /**
- * Actualizar rol de usuario
+ * Actualizar rol de usuario (soporta código de rol o id numérico)
  */
 export async function updateUserRole(email, newRole) {
   try {
-    const res = await query('UPDATE qms.users SET role = $1 WHERE LOWER(email) = $2 RETURNING *', [newRole, email.toLowerCase().trim()]);
+    const roleId = getRoleIdByName(newRole);
+    await query(
+      `UPDATE qms.users 
+       SET id_role = $1 
+       WHERE LOWER(email) = $2`, 
+      [roleId, email.toLowerCase().trim()]
+    );
+    return getUserByEmail(email);
+  } catch (err) {
+    console.error('Error actualizando rol:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Obtener un usuario por correo electrónico realizando LEFT JOIN con qms.roles y qms.departments
+ */
+export async function getUserByEmail(email) {
+  if (!email) return null;
+  try {
+    const res = await query(
+      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
+       FROM qms.users u 
+       LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
+       LEFT JOIN qms.departments d ON u.department_id = d.id
+       WHERE LOWER(u.email) = $1`, 
+      [email.toLowerCase().trim()]
+    );
     if (res.rows.length > 0) {
       return mapRowToUser(res.rows[0]);
     }
     return null;
   } catch (err) {
-    console.error('Error actualizando rol:', err.message);
+    console.error('Error al obtener usuario por correo:', err.message);
     return null;
   }
 }

@@ -12,6 +12,22 @@ export const useAuthStore = defineStore('auth', {
     isLoading: false
   }),
 
+  getters: {
+    userRole: (state) => state.user?.role || 'guest',
+    userPermissions: (state) => state.user?.permissions || [],
+    hasRole: (state) => (role) => {
+      if (!state.user) return false;
+      if (Array.isArray(role)) return role.includes(state.user.role);
+      return state.user.role === role;
+    },
+    hasPermission: (state) => (permissionKey) => {
+      if (!state.user) return false;
+      if (state.user.role === 'admin_sgc') return true;
+      const perms = state.user.permissions || [];
+      return perms.includes(permissionKey);
+    }
+  },
+
   actions: {
     async fetchAuthConfig() {
       try {
@@ -21,6 +37,23 @@ export const useAuthStore = defineStore('auth', {
         }
       } catch (err) {
         console.warn('Backend /auth/config no respondió, usando GOOGLE_CLIENT_ID por defecto:', err.message);
+      }
+    },
+
+    async fetchCurrentUser() {
+      if (!this.token) return;
+      try {
+        const { data } = await api.get('/auth/me');
+        if (data && data.success && data.user) {
+          this.user = data.user;
+          sessionStorage.setItem('qms_user', JSON.stringify(data.user));
+          if (data.token) {
+            this.token = data.token;
+            sessionStorage.setItem('qms_token', data.token);
+          }
+        }
+      } catch (err) {
+        console.warn('No se pudo refrescar la información del usuario:', err.message);
       }
     },
 
