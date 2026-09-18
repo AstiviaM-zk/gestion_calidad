@@ -59,8 +59,9 @@
       </nav>
 
       <div class="sidebar-footer">
-        <button class="btn btn-secondary btn-sm" @click="handleLogout">
-          <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+        <button class="btn btn-secondary btn-full" @click="handleLogout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Cerrar Sesión</span>
         </button>
       </div>
     </aside>
@@ -150,8 +151,8 @@ onMounted(async () => {
 <style scoped>
 .admin-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 20px;
+  grid-template-columns: 290px 1fr;
+  gap: 16px;
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -201,7 +202,7 @@ onMounted(async () => {
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  max-width: 180px;
   white-space: nowrap;
 }
 
@@ -286,6 +287,17 @@ onMounted(async () => {
 .sidebar-footer {
   padding-top: 12px;
   border-top: 1px solid var(--border-light);
+  width: 100%;
+}
+
+.sidebar-footer .btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
 }
 
 .admin-main {

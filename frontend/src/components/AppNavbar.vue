@@ -182,22 +182,24 @@ function handleLogout() {
 <style scoped>
 .app-navbar {
   width: 100%;
-  max-width: 1320px;
-  padding: 10px 24px;
-  margin: 0 auto;
+  max-width: 100%;
+  padding: 10px 32px;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: 100px;
+  border-radius: 0;
   flex-shrink: 0;
   box-sizing: border-box;
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-light);
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
 .nav-brand {
@@ -465,14 +467,14 @@ function handleLogout() {
   }
   .app-navbar {
     padding: 10px 16px !important;
-    border-radius: 20px !important;
+    border-radius: 0 !important;
   }
 }
 
 @media (max-width: 600px) {
   .app-navbar {
     padding: 8px 12px !important;
-    border-radius: 14px !important;
+    border-radius: 0 !important;
   }
   .nav-tag {
     display: none !important;
