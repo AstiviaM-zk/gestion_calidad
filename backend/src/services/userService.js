@@ -1,6 +1,5 @@
 import { query } from '../config/db.js';
 import bcrypt from 'bcryptjs';
-import { getPermissionsForRole } from './roleService.js';
 
 /**
  * Formatea el nombre completo a Title Case con un solo espacio entre palabras
@@ -78,6 +77,41 @@ function getRoleIdByName(roleName) {
 }
 
 /**
+ * Consulta la tabla qms.role_permissions para obtener los permisos asignados a un id_role en PostgreSQL.
+ * Si el rol no tiene permisos registrados en la BD, la BD responde un arreglo vacío [] y ese debe respetarse.
+ */
+export async function getPermissionsForUserRole(idRole, roleCode) {
+  if (!idRole) return [];
+  
+  try {
+    // 1. Intentar por permission_key
+    const resKey = await query(
+      `SELECT DISTINCT permission_key FROM qms.role_permissions WHERE CAST(id_role AS text) = CAST($1 AS text)`,
+      [idRole]
+    );
+    if (resKey && Array.isArray(resKey.rows)) {
+      return resKey.rows.map(r => r.permission_key).filter(Boolean);
+    }
+
+    // 2. Intentar por JOIN con qms.permissions
+    const resJoined = await query(
+      `SELECT DISTINCT p.key 
+       FROM qms.role_permissions rp
+       JOIN qms.permissions p ON (rp.id_permission = p.id OR rp.permission_id = p.id)
+       WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
+      [idRole]
+    );
+    if (resJoined && Array.isArray(resJoined.rows)) {
+      return resJoined.rows.map(r => r.key).filter(Boolean);
+    }
+  } catch (err) {
+    console.warn('⚠️ Error al consultar qms.role_permissions:', err.message);
+  }
+
+  return [];
+}
+
+/**
  * Mapea la fila de la base de datos al objeto de usuario del sistema
  */
 function mapRowToUser(row) {
@@ -85,6 +119,7 @@ function mapRowToUser(row) {
   const avatarVal = row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal || 'Usuario')}&background=1e3a8a&color=fff`;
   const userRole = resolveRoleName(row);
   const deptName = row.department_name || (row.department_id ? `Depto. #${row.department_id}` : 'General');
+  const userPermissions = Array.isArray(row.permissions) ? row.permissions : [];
 
   return {
     id: row.id,
@@ -98,7 +133,7 @@ function mapRowToUser(row) {
     idRole: row.id_role || getRoleIdByName(userRole),
     departmentId: row.department_id || null,
     departmentName: deptName,
-    permissions: getPermissionsForRole(userRole),
+    permissions: userPermissions,
     isActive: row.is_active !== false,
     status: row.is_active === false ? 'Inactivo' : 'Activo',
     googleLoginEnabled: !!row.google_login_enabled,
@@ -239,7 +274,12 @@ export async function getAllUsers() {
        WHERE u.is_active = TRUE
        ORDER BY u.created_at DESC`
     );
-    return res.rows.map(mapRowToUser);
+    const users = await Promise.all(res.rows.map(async (userRow) => {
+      const userRole = resolveRoleName(userRow);
+      const permissions = await getPermissionsForUserRole(userRow.id_role, userRole);
+      return mapRowToUser({ ...userRow, permissions });
+    }));
+    return users;
   } catch (err) {
     console.error('Error al obtener usuarios de PostgreSQL:', err.message);
     return [];
@@ -280,7 +320,10 @@ export async function getUserByEmail(email) {
       [email.toLowerCase().trim()]
     );
     if (res.rows.length > 0) {
-      return mapRowToUser(res.rows[0]);
+      const userRow = res.rows[0];
+      const userRole = resolveRoleName(userRow);
+      const permissions = await getPermissionsForUserRole(userRow.id_role, userRole);
+      return mapRowToUser({ ...userRow, permissions });
     }
     return null;
   } catch (err) {

@@ -20,6 +20,7 @@
         </button>
 
         <button 
+          v-if="canReadDocuments"
           :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
           @click="navigate('/dashboard/documents')"
         >
@@ -29,7 +30,7 @@
         </button>
 
         <button 
-          v-if="canManageUsers"
+          v-if="canReadUsers"
           :class="['nav-item', { active: isTabActive('/dashboard/users') }]"
           @click="navigate('/dashboard/users')"
         >
@@ -39,7 +40,7 @@
         </button>
 
         <button 
-          v-if="canManageRoles"
+          v-if="canReadRoles"
           :class="['nav-item', { active: isTabActive('/dashboard/roles') }]"
           @click="navigate('/dashboard/roles')"
         >
@@ -89,8 +90,9 @@ const roleStore = useRoleStore();
 const user = computed(() => authStore.user);
 const userRole = computed(() => user.value?.role || 'operator');
 
-const canManageUsers = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
-const canManageRoles = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
+const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
+const canReadUsers = computed(() => authStore.hasPermission('users:read'));
+const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
 
 const roleLabel = computed(() => {
   switch (userRole.value) {
@@ -133,9 +135,13 @@ function onAvatarError(e) {
 
 onMounted(async () => {
   await authStore.fetchCurrentUser();
-  documentStore.fetchAll();
-  if (canManageUsers.value) {
+  if (canReadDocuments.value) {
+    documentStore.fetchAll();
+  }
+  if (canReadUsers.value) {
     userStore.fetchUsers();
+  }
+  if (canReadRoles.value) {
     roleStore.fetchRoles();
   }
 });

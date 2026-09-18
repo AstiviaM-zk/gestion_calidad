@@ -74,6 +74,7 @@
               </button>
 
               <button 
+                v-if="canReadDocuments"
                 :class="['drawer-nav-item', { active: isTabActive('/dashboard/documents') }]"
                 @click="navigate('/dashboard/documents')"
               >
@@ -83,6 +84,7 @@
               </button>
 
               <button 
+                v-if="canReadUsers"
                 :class="['drawer-nav-item', { active: isTabActive('/dashboard/users') }]"
                 @click="navigate('/dashboard/users')"
               >
@@ -92,6 +94,7 @@
               </button>
 
               <button 
+                v-if="canReadRoles"
                 :class="['drawer-nav-item', { active: isTabActive('/dashboard/roles') }]"
                 @click="navigate('/dashboard/roles')"
               >
@@ -147,6 +150,10 @@ const user = computed(() => authStore.user);
 const documentsCount = computed(() => documentStore.documents.length);
 const usersCount = computed(() => userStore.users.length);
 const rolesCount = computed(() => roleStore.roles.length);
+
+const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
+const canReadUsers = computed(() => authStore.hasPermission('users:read'));
+const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
 
 const userAvatar = computed(() => {
   return user.value?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.value?.name || "User") + "&background=1e3a8a&color=fff";
