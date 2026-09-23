@@ -84,25 +84,17 @@ export async function getPermissionsForUserRole(idRole, roleCode) {
   if (!idRole) return [];
   
   try {
-    // 1. Intentar por permission_key
-    const resKey = await query(
-      `SELECT DISTINCT permission_key FROM qms.role_permissions WHERE CAST(id_role AS text) = CAST($1 AS text)`,
-      [idRole]
-    );
-    if (resKey && Array.isArray(resKey.rows)) {
-      return resKey.rows.map(r => r.permission_key).filter(Boolean);
-    }
-
-    // 2. Intentar por JOIN con qms.permissions
     const resJoined = await query(
-      `SELECT DISTINCT p.key 
+      `SELECT p.* 
        FROM qms.role_permissions rp
-       JOIN qms.permissions p ON (rp.id_permission = p.id OR rp.permission_id = p.id)
+       JOIN qms.permissions p ON rp.id_permission = p.id
        WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
       [idRole]
     );
     if (resJoined && Array.isArray(resJoined.rows)) {
-      return resJoined.rows.map(r => r.key).filter(Boolean);
+      return resJoined.rows
+        .map(r => r.key || r.code || r.name || r.permission || r.permission_key || String(r.id))
+        .filter(Boolean);
     }
   } catch (err) {
     console.warn('⚠️ Error al consultar qms.role_permissions:', err.message);
@@ -329,5 +321,105 @@ export async function getUserByEmail(email) {
   } catch (err) {
     console.error('Error al obtener usuario por correo:', err.message);
     return null;
+  }
+}
+
+/**
+ * Obtener un usuario por su ID
+ */
+export async function getUserById(id) {
+  if (!id) return null;
+  try {
+    const res = await query(
+      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
+       FROM qms.users u 
+       LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
+       LEFT JOIN qms.departments d ON u.department_id = d.id
+       WHERE u.id = $1`, 
+      [id]
+    );
+    if (res.rows.length > 0) {
+      const userRow = res.rows[0];
+      const userRole = resolveRoleName(userRow);
+      const permissions = await getPermissionsForUserRole(userRow.id_role, userRole);
+      return mapRowToUser({ ...userRow, permissions });
+    }
+    return null;
+  } catch (err) {
+    console.error('Error al obtener usuario por ID:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Obtener todos los departamentos desde qms.departments
+ */
+export async function getAllDepartments() {
+  try {
+    const res = await query(
+      `SELECT id, name, code FROM qms.departments ORDER BY name ASC`
+    );
+    return res.rows;
+  } catch (err) {
+    console.warn('⚠️ Error al consultar qms.departments:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Actualiza la información general de un usuario por su ID (nombre, rol, departamento)
+ */
+export async function updateUser(id, userData) {
+  try {
+    const { full_name, name, role, department_id, departmentId } = userData;
+    const nameToUse = full_name || name;
+    const deptIdToUse = department_id !== undefined ? department_id : departmentId;
+
+    const updates = [];
+    const values = [];
+    let paramIdx = 1;
+
+    if (nameToUse !== undefined && nameToUse !== null) {
+      const cleanName = sanitizeFullName(nameToUse);
+      if (cleanName) {
+        updates.push(`full_name = $${paramIdx++}`);
+        values.push(cleanName);
+      }
+    }
+
+    if (role !== undefined && role !== null) {
+      const roleId = getRoleIdByName(role);
+      updates.push(`id_role = $${paramIdx++}`);
+      values.push(roleId);
+    }
+
+    if (deptIdToUse !== undefined && deptIdToUse !== null) {
+      if (deptIdToUse === '' || deptIdToUse === 'null') {
+        updates.push(`department_id = NULL`);
+      } else {
+        const parsedDept = parseInt(deptIdToUse, 10);
+        if (!isNaN(parsedDept)) {
+          updates.push(`department_id = $${paramIdx++}`);
+          values.push(parsedDept);
+        }
+      }
+    }
+
+    if (updates.length === 0) {
+      return getUserById(id);
+    }
+
+    values.push(id);
+    await query(
+      `UPDATE qms.users 
+       SET ${updates.join(', ')} 
+       WHERE id = $${paramIdx}`,
+      values
+    );
+
+    return getUserById(id);
+  } catch (err) {
+    console.error('Error actualizando información de usuario:', err.message);
+    throw err;
   }
 }

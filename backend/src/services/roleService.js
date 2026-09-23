@@ -4,12 +4,27 @@
 import { query } from '../config/db.js';
 
 /**
+ * Formatea un objeto de rol retornado por PostgreSQL asignando propiedades por defecto
+ */
+function formatRole(row, perms = []) {
+  if (!row) return null;
+  return {
+    ...row,
+    role: row.role || row.name || row.code || '',
+    name: row.name || row.role || '',
+    description: row.description || '',
+    isSystem: row.isSystem !== undefined ? row.isSystem : (row.is_system !== undefined ? row.is_system : false),
+    permissions: perms
+  };
+}
+
+/**
  * Obtiene todos los roles registrados en PostgreSQL con sus respectivos permisos
  */
 export async function getAllRoles() {
   try {
     const res = await query(
-      `SELECT r.id, r.code as role, r.name, r.description, r.badge_color as "badgeColor", r.is_system as "isSystem"
+      `SELECT r.*
        FROM qms.roles r
        ORDER BY r.id ASC`
     );
@@ -18,19 +33,22 @@ export async function getAllRoles() {
       let perms = [];
       try {
         const permsRes = await query(
-          `SELECT permission_key as key FROM qms.role_permissions WHERE CAST(id_role AS text) = CAST($1 AS text)`,
+          `SELECT p.* 
+           FROM qms.role_permissions rp
+           JOIN qms.permissions p ON rp.id_permission = p.id
+           WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
           [roleObj.id]
         );
         if (permsRes.rows) {
-          perms = permsRes.rows.map(p => ({ key: p.key, label: p.key }));
+          perms = permsRes.rows.map(p => {
+            const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
+            return { key: k, label: p.description || p.label || k };
+          });
         }
       } catch (pErr) {
-        console.warn(`Error obteniendo permisos para el rol ${roleObj.role}:`, pErr.message);
+        console.warn(`Error obteniendo permisos para el rol ${roleObj.name || roleObj.id}:`, pErr.message);
       }
-      return {
-        ...roleObj,
-        permissions: perms
-      };
+      return formatRole(roleObj, perms);
     }));
 
     return roles;
@@ -47,21 +65,25 @@ export async function getRoleByCode(roleCode) {
   if (!roleCode) return null;
   try {
     const res = await query(
-      `SELECT r.id, r.code as role, r.name, r.description, r.badge_color as "badgeColor", r.is_system as "isSystem"
+      `SELECT r.*
        FROM qms.roles r
-       WHERE LOWER(r.code) = LOWER($1) OR LOWER(r.name) = LOWER($1)`,
+       WHERE LOWER(r.name) = LOWER($1) OR LOWER(CAST(r.id AS text)) = LOWER($1)`,
       [roleCode.trim()]
     );
     if (res.rows.length > 0) {
       const roleObj = res.rows[0];
       const permsRes = await query(
-        `SELECT permission_key as key FROM qms.role_permissions WHERE CAST(id_role AS text) = CAST($1 AS text)`,
+        `SELECT p.* 
+         FROM qms.role_permissions rp
+         JOIN qms.permissions p ON rp.id_permission = p.id
+         WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
         [roleObj.id]
       );
-      return {
-        ...roleObj,
-        permissions: permsRes.rows ? permsRes.rows.map(p => ({ key: p.key, label: p.key })) : []
-      };
+      const perms = permsRes.rows ? permsRes.rows.map(p => {
+        const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
+        return { key: k, label: p.description || p.label || k };
+      }) : [];
+      return formatRole(roleObj, perms);
     }
   } catch (err) {
     console.error('Error al obtener rol por código:', err.message);
@@ -87,43 +109,60 @@ export async function createRole(roleData) {
   }
 
   const roleName = roleData.name.trim();
-  const roleCode = roleName.toLowerCase().replace(/\s+/g, '_');
   const description = roleData.description || 'Rol personalizado del sistema QMS.';
 
   // Verificar si ya existe
   const existingRes = await query(
-    `SELECT id FROM qms.roles WHERE LOWER(code) = LOWER($1) OR LOWER(name) = LOWER($2)`,
-    [roleCode, roleName]
+    `SELECT id FROM qms.roles WHERE LOWER(name) = LOWER($1)`,
+    [roleName]
   );
   if (existingRes.rows.length > 0) {
     throw new Error(`El rol "${roleName}" ya existe en la base de datos.`);
   }
 
-  const insertRes = await query(
-    `INSERT INTO qms.roles (code, name, description, badge_color, is_system)
-     VALUES ($1, $2, $3, 'role-custom', FALSE)
-     RETURNING id, code as role, name, description, badge_color as "badgeColor", is_system as "isSystem"`,
-    [roleCode, roleName, description]
-  );
+  let insertRes;
+  try {
+    insertRes = await query(
+      `INSERT INTO qms.roles (name, description)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [roleName, description]
+    );
+  } catch (err) {
+    insertRes = await query(
+      `INSERT INTO qms.roles (name)
+       VALUES ($1)
+       RETURNING *`,
+      [roleName]
+    );
+  }
 
   const newRole = insertRes.rows[0];
   const createdPerms = [];
 
   if (Array.isArray(roleData.permissions)) {
     for (const perm of roleData.permissions) {
-      const keyStr = typeof perm === 'string' ? perm : perm.key;
+      const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name || perm.code);
       if (keyStr) {
-        await query(
-          `INSERT INTO qms.role_permissions (id_role, permission_key) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [newRole.id, keyStr]
-        );
+        try {
+          const permRes = await query(
+            `SELECT id FROM qms.permissions WHERE key = $1 OR code = $1 OR name = $1 LIMIT 1`,
+            [keyStr]
+          );
+          if (permRes.rows.length > 0) {
+            const permId = permRes.rows[0].id;
+            await query(
+              `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [newRole.id, permId]
+            );
+          }
+        } catch (e) {
+          console.warn('Error vinculando permiso al nuevo rol:', e.message);
+        }
         createdPerms.push({ key: keyStr, label: keyStr });
       }
     }
   }
 
-  return {
-    ...newRole,
-    permissions: createdPerms
-  };
+  return formatRole(newRole, createdPerms);
 }
