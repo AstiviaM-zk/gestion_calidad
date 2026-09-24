@@ -8,9 +8,10 @@
       :role-options="roleOptions"
       :current-user-email="currentUserEmail"
       :copied-email="copiedEmail"
+      v-model:show-inactive="showInactiveUsers"
       @open-detail="openUserDetail"
       @copy-email="copyEmail"
-      @view-inactive="showInactiveModal = true"
+      @activate-user="handleActivateUser"
     />
 
     <UserDetailModal
@@ -37,18 +38,6 @@
       @confirm="confirmRoleChange"
     />
 
-    <InactiveUsersModal
-      :show="showInactiveModal"
-      :inactive-users="inactiveUsersList"
-      :role-options="roleOptions"
-      v-model:search-query="searchQuery"
-      v-model:selected-role-filter="selectedRoleFilter"
-      :current-user-email="currentUserEmail"
-      :copied-email="copiedEmail"
-      @close="showInactiveModal = false"
-      @copy-email="copyEmail"
-      @activate-user="handleActivateUser"
-    />
   </div>
 </template>
 
@@ -62,7 +51,6 @@ import { showToast } from '../utils/toast';
 import UserTable from './users/UserTable.vue';
 import UserDetailModal from './users/UserDetailModal.vue';
 import UserRoleConfirmModal from './users/UserRoleConfirmModal.vue';
-import InactiveUsersModal from './users/InactiveUsersModal.vue';
 
 const props = defineProps({
   users: { type: Array, default: null },
@@ -85,7 +73,7 @@ const canDeleteUser = computed(() => {
 
 // Modales y usuario seleccionado
 const showDetailModal = ref(false);
-const showInactiveModal = ref(false);
+const showInactiveUsers = ref(false);
 const selectedUser = ref(null);
 const tempSelectedRole = ref('');
 
@@ -121,14 +109,16 @@ onMounted(() => {
 
 const totalActiveUsersCount = computed(() => {
   const rawList = props.users || userStore.users;
-  return rawList.filter(u => u.isActive !== false && u.status !== 'Inactivo').length;
+  return rawList.length;
 });
 
 const userList = computed(() => {
   const rawList = props.users || userStore.users;
-  const activeList = rawList.filter(u => u.isActive !== false && u.status !== 'Inactivo');
-
-  let filtered = activeList;
+  
+  let filtered = rawList;
+  if (!showInactiveUsers.value) {
+    filtered = filtered.filter(u => u.isActive !== false && u.status !== 'Inactivo');
+  }
 
   if (selectedRoleFilter.value) {
     filtered = filtered.filter(u => u.role === selectedRoleFilter.value);
@@ -144,26 +134,6 @@ const userList = computed(() => {
   }
 
   return [...filtered].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
-});
-
-const inactiveUsersList = computed(() => {
-  const rawList = props.users || userStore.users;
-  let inactiveList = rawList.filter(u => u.isActive === false || u.status === 'Inactivo');
-
-  if (selectedRoleFilter.value) {
-    inactiveList = inactiveList.filter(u => u.role === selectedRoleFilter.value);
-  }
-
-  if (searchQuery.value && searchQuery.value.trim()) {
-    const q = searchQuery.value.toLowerCase().trim();
-    inactiveList = inactiveList.filter(u => {
-      const nameMatch = u.name && u.name.toLowerCase().includes(q);
-      const emailMatch = u.email && u.email.toLowerCase().includes(q);
-      return nameMatch || emailMatch;
-    });
-  }
-
-  return [...inactiveList].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'es', { sensitivity: 'base' }));
 });
 
 const roleOptions = computed(() => {
