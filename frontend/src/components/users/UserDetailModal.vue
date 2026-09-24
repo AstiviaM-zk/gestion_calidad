@@ -20,10 +20,6 @@
           </div>
 
           <div class="detail-body">
-            <div v-if="saveError" class="alert-box alert-error">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              <span>{{ saveError }}</span>
-            </div>
 
             <div class="deactivate-warning-box">
               <div class="warning-icon-wrapper">
@@ -184,14 +180,6 @@
           </div>
 
           <div class="detail-body">
-            <div v-if="saveError" class="alert-box alert-error">
-              <i class="fa-solid fa-circle-exclamation"></i>
-              <span>{{ saveError }}</span>
-            </div>
-            <div v-if="saveSuccess" class="alert-box alert-success">
-              <i class="fa-solid fa-circle-check"></i>
-              <span>{{ saveSuccess }}</span>
-            </div>
 
             <div class="edit-form-group">
               <label class="edit-label"><i class="fa-solid fa-signature text-primary"></i> Nombre Completo:</label>
@@ -245,6 +233,7 @@
 
 <script setup>
 import { ref, watch } from 'vue';
+import { showToast } from '../../utils/toast';
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -338,7 +327,7 @@ async function confirmDeactivate() {
 async function handleSave() {
   if (!props.user || !props.user.id) return;
   if (!editForm.value.name.trim()) {
-    saveError.value = 'El nombre completo es obligatorio.';
+    showToast.error('El nombre completo es obligatorio.');
     return;
   }
   
@@ -355,15 +344,11 @@ async function handleSave() {
     },
     onSuccess: () => {
       isSaving.value = false;
-      saveSuccess.value = 'Información actualizada correctamente.';
-      setTimeout(() => {
-        isEditMode.value = false;
-        saveSuccess.value = '';
-      }, 1200);
+      isEditMode.value = false;
     },
     onError: (msg) => {
       isSaving.value = false;
-      saveError.value = msg || 'Error al guardar cambios del usuario';
+      showToast.error(msg || 'Error al guardar cambios del usuario');
     }
   });
 }

@@ -178,10 +178,6 @@
           <p>Configura tu <code>GOOGLE_CLIENT_ID</code> en el archivo <code>backend/.env</code> para habilitar la autenticación real con Google Cloud.</p>
         </div>
       </div>
-
-      <div v-if="statusMessage" :class="['status-msg', statusType, 'shadow-sm']">
-        <i :class="statusIcon"></i> {{ statusMessage }}
-      </div>
     </div>
 
     <footer class="card-footer">

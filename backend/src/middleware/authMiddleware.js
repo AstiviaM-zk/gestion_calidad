@@ -7,7 +7,7 @@ import { getUserByEmail } from '../services/userService.js';
  */
 export async function authenticateToken(req, res, next) {
   const authHeader = req.headers.authorization;
-  
+
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
       success: false,
@@ -26,7 +26,7 @@ export async function authenticateToken(req, res, next) {
         if (dbUser.isActive === false || dbUser.status === 'Inactivo') {
           return res.status(401).json({
             success: false,
-            message: 'Tu cuenta se encuentra inactiva. Contacta al administrador del sistema.'
+            message: 'No cuentas con acceso al Sistema de Gestión de Calidad. Si crees que es un error, contacta al administrador del sistema.'
           });
         }
         req.user = dbUser;

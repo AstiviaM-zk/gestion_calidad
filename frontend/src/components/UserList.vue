@@ -43,6 +43,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '../stores/users';
 import { useRoleStore } from '../stores/roles';
 import { useAuthStore } from '../stores/auth';
+import { showToast } from '../utils/toast';
 
 import UserTable from './users/UserTable.vue';
 import UserDetailModal from './users/UserDetailModal.vue';
@@ -90,6 +91,7 @@ function copyEmail(email) {
     navigator.clipboard.writeText(email);
   }
   copiedEmail.value = email;
+  showToast.info('Correo copiado al portapapeles');
   setTimeout(() => {
     copiedEmail.value = '';
   }, 2000);
@@ -161,8 +163,14 @@ async function handleSaveUser({ id, userData, onSuccess, onError }) {
     if (res.user && selectedUser.value) {
       selectedUser.value = { ...selectedUser.value, ...res.user };
     }
+    if (userData.isActive === false) {
+      showToast.success('Usuario desactivado del sistema correctamente');
+    } else {
+      showToast.success('Información de usuario actualizada correctamente');
+    }
     onSuccess();
   } else {
+    showToast.error(res.message || 'Error al actualizar información del usuario');
     onError(res.message);
   }
 }
@@ -197,11 +205,12 @@ async function confirmRoleChange() {
 
   const res = await userStore.updateUserRole(targetUser.email, newRole);
   if (!res.success) {
-    alert(res.message || "Error al actualizar el rol");
+    showToast.error(res.message || "Error al actualizar el rol");
     if (selectedUser.value) {
       tempSelectedRole.value = previousUserRole.value;
     }
   } else {
+    showToast.success(`Rol del usuario actualizado exitosamente`);
     targetUser.role = newRole;
     if (selectedUser.value) {
       selectedUser.value.role = newRole;
