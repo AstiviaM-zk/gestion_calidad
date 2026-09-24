@@ -11,6 +11,8 @@
       </div>
 
       <nav class="sidebar-nav">
+        <div class="nav-section-title">Principal</div>
+        
         <button 
           :class="['nav-item', { active: isTabActive('/dashboard/overview') }]"
           @click="navigate('/dashboard/overview')"
@@ -27,6 +29,17 @@
           <i class="fa-solid fa-folder-closed"></i>
           <span>Gestor de Documentos</span>
           <span class="badge-count">{{ documentStore.documents.length }}</span>
+        </button>
+
+        <div class="nav-section-title" v-if="canReadDepartments || canReadUsers || canReadRoles">Administración</div>
+
+        <button 
+          v-if="canReadDepartments"
+          :class="['nav-item', { active: isTabActive('/dashboard/departments') }]"
+          @click="navigate('/dashboard/departments')"
+        >
+          <i class="fa-solid fa-building"></i>
+          <span>Departamentos</span>
         </button>
 
         <button 
@@ -94,6 +107,7 @@ const userRole = computed(() => user.value?.role || 'operator');
 const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
+const canReadDepartments = computed(() => authStore.hasPermission('departments:read'));
 
 const roleLabel = computed(() => {
   switch (userRole.value) {
@@ -228,6 +242,16 @@ onMounted(async () => {
   gap: 6px;
   flex: 1;
   overflow-y: auto;
+}
+
+.nav-section-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 14px 4px 14px;
+  margin-top: 4px;
 }
 
 .nav-item {
