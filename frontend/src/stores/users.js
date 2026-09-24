@@ -36,6 +36,45 @@ export const useUserStore = defineStore('users', {
       }
     },
 
+    async createDepartment(departmentData) {
+      try {
+        const { data } = await api.post('/departments', departmentData);
+        if (data.success) {
+          await this.fetchDepartments();
+          return { success: true, department: data.department };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        return { success: false, message: err.response?.data?.message || 'Error al crear departamento' };
+      }
+    },
+
+    async updateDepartment(id, departmentData) {
+      try {
+        const { data } = await api.put(`/departments/${id}`, departmentData);
+        if (data.success) {
+          await this.fetchDepartments();
+          return { success: true, department: data.department };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        return { success: false, message: err.response?.data?.message || 'Error al actualizar departamento' };
+      }
+    },
+
+    async deleteDepartment(id) {
+      try {
+        const { data } = await api.delete(`/departments/${id}`);
+        if (data.success) {
+          await this.fetchDepartments();
+          return { success: true, message: data.message };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        return { success: false, message: err.response?.data?.message || 'Error al eliminar departamento' };
+      }
+    },
+
     async updateUserRole(email, role) {
       try {
         const { data } = await api.put(`/users/${encodeURIComponent(email)}/role`, { role });

@@ -20,6 +20,15 @@
         </button>
 
         <button 
+          v-if="canReadDepartments"
+          :class="['nav-item', { active: isTabActive('/dashboard/departments') }]"
+          @click="navigate('/dashboard/departments')"
+        >
+          <i class="fa-solid fa-building"></i>
+          <span>Departamentos</span>
+        </button>
+
+        <button 
           v-if="canReadDocuments"
           :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
           @click="navigate('/dashboard/documents')"
@@ -94,6 +103,7 @@ const userRole = computed(() => user.value?.role || 'operator');
 const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
+const canReadDepartments = computed(() => authStore.hasPermission('departments:read'));
 
 const roleLabel = computed(() => {
   switch (userRole.value) {

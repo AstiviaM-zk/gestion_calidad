@@ -5,26 +5,6 @@ import { authenticateToken, requirePermission } from '../middleware/authMiddlewa
 const router = express.Router();
 
 /**
- * GET /api/departments
- * Devuelve la lista de departamentos de QMS desde PostgreSQL
- */
-router.get('/departments', authenticateToken, async (req, res) => {
-  try {
-    const departments = await getAllDepartments();
-    return res.json({
-      success: true,
-      departments
-    });
-  } catch (error) {
-    console.error('Error al obtener la lista de departamentos:', error.message);
-    return res.status(500).json({
-      success: false,
-      message: 'Error al obtener la lista de departamentos'
-    });
-  }
-});
-
-/**
  * GET /api/users
  * Devuelve la lista de usuarios registrados en QMS (Permiso users:read o admin_sgc)
  */
