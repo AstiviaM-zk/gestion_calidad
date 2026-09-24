@@ -3,21 +3,22 @@
     <div class="section-header">
       <div>
         <div class="title-with-badge">
-          <h3 class="section-title"><i class="fa-solid fa-users-gear"></i> {{ isInactiveMode ? 'Usuarios Desactivados' : 'Usuarios en sistema' }}</h3>
-          <span class="user-count-badge" :title="(searchQuery || selectedRoleFilter) ? 'Usuarios encontrados' : (isInactiveMode ? 'Total de usuarios inactivos' : 'Total de usuarios activos')">
+          <h3 class="section-title"><i class="fa-solid fa-users-gear"></i> Usuarios en sistema</h3>
+          <span class="user-count-badge" :title="(searchQuery || selectedRoleFilter) ? 'Usuarios encontrados' : 'Total de usuarios listados'">
             <i class="fa-solid fa-user-group"></i> {{ userList.length }} {{ userList.length === 1 ? 'usuario' : 'usuarios' }}
           </span>
         </div>
-        <p class="section-subtitle">{{ isInactiveMode ? 'Usuarios que han sido desactivados y no tienen acceso al sistema QMS' : 'Aquí puedes administrar los usuarios con acceso al sistema QMS' }}</p>
+        <p class="section-subtitle">Aquí puedes administrar los usuarios con acceso al sistema QMS</p>
       </div>
 
       <div class="filter-actions">
         <button 
-          v-if="!isInactiveMode" 
-          class="btn btn-sm btn-outline-secondary view-inactive-btn"
-          @click="$emit('view-inactive')"
+          class="btn btn-sm view-inactive-chip"
+          :class="{ 'chip-active': showInactive }"
+          @click="$emit('update:showInactive', !showInactive)"
+          title="Alternar visibilidad de inactivos"
         >
-          <i class="fa-solid fa-users-slash"></i> Inactivos
+          <i class="fa-solid fa-users-slash"></i> Mostrar Inactivos
         </button>
 
         <!-- Filtro por Rol -->
@@ -67,7 +68,7 @@
             <th>Departamento</th>
             <th>Acceso</th>
             <th>Rol</th>
-            <th>{{ isInactiveMode ? 'Acción' : 'Último Acceso' }}</th>
+            <th>Último Acceso</th>
           </tr>
         </thead>
         <tbody>
@@ -87,8 +88,9 @@
                 />
                 <div class="user-cell-details">
                   <div class="user-name-wrapper">
-                    <span class="user-cell-name">{{ user.name }}</span>
+                    <span class="user-cell-name" :class="{ 'text-danger': user.isActive === false }">{{ user.name }}</span>
                     <span v-if="user.email === currentUserEmail" class="you-badge">(Tú)</span>
+                    <span v-if="user.isActive === false || user.status === 'Inactivo'" class="inactive-chip-badge">Inactivo</span>
                   </div>
                   <div class="email-copy-wrapper">
                     <span class="user-cell-email">{{ user.email }}</span>
@@ -134,7 +136,7 @@
             </td>
             <td>
               <div class="last-login-cell">
-                <span class="text-subtle text-sm" v-if="!isInactiveMode">{{ formatDate(user.lastLogin) }}</span>
+                <span class="text-subtle text-sm" v-if="user.isActive !== false">{{ formatDate(user.lastLogin) }}</span>
                 <button 
                   v-else
                   type="button"
@@ -143,7 +145,7 @@
                 >
                   <i class="fa-solid fa-check"></i> Activar
                 </button>
-                <i class="fa-solid fa-chevron-right row-hover-icon" v-if="!isInactiveMode"></i>
+                <i class="fa-solid fa-chevron-right row-hover-icon" v-if="user.isActive !== false"></i>
               </div>
             </td>
           </tr>
@@ -152,9 +154,9 @@
               <i class="fa-solid fa-magnifying-glass empty-icon" v-if="searchQuery || selectedRoleFilter"></i>
               <i class="fa-solid fa-user-xmark empty-icon" v-else></i>
               <p v-if="searchQuery || selectedRoleFilter">No se encontraron usuarios con los filtros aplicados.</p>
-              <p v-else>{{ isInactiveMode ? 'No hay usuarios desactivados.' : 'No se encontraron usuarios activos en el sistema.' }}</p>
+              <p v-else>No se encontraron usuarios activos en el sistema.</p>
               <span class="text-sm text-subtle" v-if="searchQuery || selectedRoleFilter">Intenta limpiar el cuadro de búsqueda o cambiar el filtro de rol.</span>
-              <span class="text-sm text-subtle" v-else>{{ isInactiveMode ? 'Los usuarios que sean desactivados aparecerán aquí.' : 'Los usuarios registrados con estado activo aparecerán aquí.' }}</span>
+              <span class="text-sm text-subtle" v-else>Los usuarios registrados con estado activo aparecerán aquí. (Usa el botón "Mostrar Inactivos" para incluirlos)</span>
             </td>
           </tr>
         </tbody>
@@ -179,10 +181,10 @@ const props = defineProps({
   roleOptions: { type: Array, required: true },
   currentUserEmail: { type: String, default: '' },
   copiedEmail: { type: String, default: '' },
-  isInactiveMode: { type: Boolean, default: false }
+  showInactive: { type: Boolean, default: false }
 });
 
-defineEmits(['update:searchQuery', 'update:selectedRoleFilter', 'open-detail', 'copy-email', 'activate-user', 'view-inactive']);
+defineEmits(['update:searchQuery', 'update:selectedRoleFilter', 'update:showInactive', 'open-detail', 'copy-email', 'activate-user']);
 
 function getRoleLabel(roleCode) {
   const match = props.roleOptions.find(r => (r.role || r.name) === roleCode);
@@ -275,6 +277,43 @@ function onAvatarError(e, name) {
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.view-inactive-chip {
+  background-color: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.view-inactive-chip:hover {
+  background-color: #e2e8f0;
+  color: #475569;
+}
+
+.view-inactive-chip.chip-active {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.inactive-chip-badge {
+  background: #fee2e2;
+  color: #dc2626;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 8px;
+  border: 1px solid #fecaca;
 }
 
 .role-filter-box {

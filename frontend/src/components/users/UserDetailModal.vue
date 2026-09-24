@@ -95,7 +95,7 @@
               </button>
 
               <button 
-                v-if="canDeleteUser && user.email !== currentUserEmail" 
+                v-if="canDeleteUser && user.email !== currentUserEmail && user.isActive !== false" 
                 type="button" 
                 class="header-action-btn deactivate-action-btn" 
                 @click="triggerDeactivateConfirm" 
@@ -195,7 +195,7 @@
               </div>
               <div class="detail-user-main">
                 <h4 class="detail-user-name">Editar Usuario</h4>
-                <span class="detail-user-email">Modificando datos en PostgreSQL</span>
+                <span class="detail-user-email">Actualizar datos de usuario</span>
               </div>
             </div>
             <button type="button" class="close-modal-btn icon-btn" @click="cancelEditing" title="Cancelar edición">
