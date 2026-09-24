@@ -3,15 +3,23 @@
     <div class="section-header">
       <div>
         <div class="title-with-badge">
-          <h3 class="section-title"><i class="fa-solid fa-users-gear"></i> Usuarios en sistema</h3>
-          <span class="user-count-badge" :title="(searchQuery || selectedRoleFilter) ? 'Usuarios encontrados' : 'Total de usuarios activos'">
+          <h3 class="section-title"><i class="fa-solid fa-users-gear"></i> {{ isInactiveMode ? 'Usuarios Desactivados' : 'Usuarios en sistema' }}</h3>
+          <span class="user-count-badge" :title="(searchQuery || selectedRoleFilter) ? 'Usuarios encontrados' : (isInactiveMode ? 'Total de usuarios inactivos' : 'Total de usuarios activos')">
             <i class="fa-solid fa-user-group"></i> {{ userList.length }} {{ userList.length === 1 ? 'usuario' : 'usuarios' }}
           </span>
         </div>
-        <p class="section-subtitle">Aquí puedes administrar los usuarios con acceso al sistema QMS</p>
+        <p class="section-subtitle">{{ isInactiveMode ? 'Usuarios que han sido desactivados y no tienen acceso al sistema QMS' : 'Aquí puedes administrar los usuarios con acceso al sistema QMS' }}</p>
       </div>
 
       <div class="filter-actions">
+        <button 
+          v-if="!isInactiveMode" 
+          class="btn btn-sm btn-outline-secondary view-inactive-btn"
+          @click="$emit('view-inactive')"
+        >
+          <i class="fa-solid fa-users-slash"></i> Inactivos
+        </button>
+
         <!-- Filtro por Rol -->
         <div class="role-filter-box">
           <i class="fa-solid fa-filter role-filter-icon"></i>
@@ -59,7 +67,7 @@
             <th>Departamento</th>
             <th>Acceso</th>
             <th>Rol</th>
-            <th>Último Acceso</th>
+            <th>{{ isInactiveMode ? 'Acción' : 'Último Acceso' }}</th>
           </tr>
         </thead>
         <tbody>
@@ -126,8 +134,16 @@
             </td>
             <td>
               <div class="last-login-cell">
-                <span class="text-subtle text-sm">{{ formatDate(user.lastLogin) }}</span>
-                <i class="fa-solid fa-chevron-right row-hover-icon"></i>
+                <span class="text-subtle text-sm" v-if="!isInactiveMode">{{ formatDate(user.lastLogin) }}</span>
+                <button 
+                  v-else
+                  type="button"
+                  class="btn btn-sm btn-success activate-btn"
+                  @click.stop="$emit('activate-user', user)"
+                >
+                  <i class="fa-solid fa-check"></i> Activar
+                </button>
+                <i class="fa-solid fa-chevron-right row-hover-icon" v-if="!isInactiveMode"></i>
               </div>
             </td>
           </tr>
@@ -136,9 +152,9 @@
               <i class="fa-solid fa-magnifying-glass empty-icon" v-if="searchQuery || selectedRoleFilter"></i>
               <i class="fa-solid fa-user-xmark empty-icon" v-else></i>
               <p v-if="searchQuery || selectedRoleFilter">No se encontraron usuarios con los filtros aplicados.</p>
-              <p v-else>No se encontraron usuarios activos en el sistema.</p>
+              <p v-else>{{ isInactiveMode ? 'No hay usuarios desactivados.' : 'No se encontraron usuarios activos en el sistema.' }}</p>
               <span class="text-sm text-subtle" v-if="searchQuery || selectedRoleFilter">Intenta limpiar el cuadro de búsqueda o cambiar el filtro de rol.</span>
-              <span class="text-sm text-subtle" v-else>Los usuarios registrados con estado activo aparecerán aquí.</span>
+              <span class="text-sm text-subtle" v-else>{{ isInactiveMode ? 'Los usuarios que sean desactivados aparecerán aquí.' : 'Los usuarios registrados con estado activo aparecerán aquí.' }}</span>
             </td>
           </tr>
         </tbody>
@@ -162,10 +178,11 @@ const props = defineProps({
   selectedRoleFilter: { type: String, default: '' },
   roleOptions: { type: Array, required: true },
   currentUserEmail: { type: String, default: '' },
-  copiedEmail: { type: String, default: '' }
+  copiedEmail: { type: String, default: '' },
+  isInactiveMode: { type: Boolean, default: false }
 });
 
-defineEmits(['update:searchQuery', 'update:selectedRoleFilter', 'open-detail', 'copy-email']);
+defineEmits(['update:searchQuery', 'update:selectedRoleFilter', 'open-detail', 'copy-email', 'activate-user', 'view-inactive']);
 
 function getRoleLabel(roleCode) {
   const match = props.roleOptions.find(r => (r.role || r.name) === roleCode);
@@ -509,4 +526,45 @@ function onAvatarError(e, name) {
 }
 
 .text-green { color: #16a34a !important; }
+
+.btn-success {
+  background: #16a34a;
+  color: #ffffff;
+  border: 1px solid #15803d;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-success:hover {
+  background: #15803d;
+  border-color: #166534;
+}
+
+.view-inactive-btn {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.view-inactive-btn:hover {
+  background: #e2e8f0;
+  color: #475569;
+  border-color: #94a3b8;
+}
 </style>

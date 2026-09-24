@@ -228,7 +228,7 @@ const statusType = computed(() => authStore.statusType);
 const isLoading = computed(() => authStore.isLoading);
 
 const isDefaultClientId = computed(() => {
-  return !!(googleClientId.value && googleClientId.value.includes('YOUR_GOOGLE_CLIENT_ID'));
+  return !googleClientId.value || googleClientId.value.includes('YOUR_GOOGLE_CLIENT_ID');
 });
 
 const statusIcon = computed(() => {
@@ -255,7 +255,11 @@ watch(googleClientId, () => {
 });
 
 function initGoogleSdk() {
-  const targetClientId = googleClientId.value || '606541311192-nta8lgacqaaofml43jci2vcokumom3mp.apps.googleusercontent.com';
+  const targetClientId = googleClientId.value;
+  if (!targetClientId) {
+    sdkLoading.value = false;
+    return;
+  }
   let attempts = 0;
   const interval = setInterval(() => {
     attempts++;

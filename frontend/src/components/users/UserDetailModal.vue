@@ -57,8 +57,29 @@
                 @error="onAvatarError($event, user.name)"
               />
               <div class="detail-user-main">
-                <h4 class="detail-user-name">{{ user.name }}</h4>
-                <span class="detail-user-email">{{ user.email }}</span>
+                <div class="user-name-group">
+                  <button
+                    v-if="user.email"
+                    type="button"
+                    class="tiny-copy-btn"
+                    title="Copiar correo"
+                    @click="copyUserEmail"
+                  >
+                    <i class="fa-regular fa-copy"></i>
+                  </button>
+                  <h4 class="detail-user-name">{{ user.name }}</h4>
+                </div>
+                <div class="detail-user-email-wrapper">
+                  <span class="detail-user-email">{{ user.email }}</span>
+                  <a 
+                    v-if="user.email"
+                    :href="`mailto:${user.email}`"
+                    class="inline-email-action" 
+                    title="Enviar correo electrónico"
+                  >
+                    <i class="fa-solid fa-envelope"></i>
+                  </a>
+                </div>
               </div>
             </div>
 
@@ -149,8 +170,11 @@
                   </option>
                 </select>
               </div>
-              <p class="text-subtle text-xs mt-1">
-                Al seleccionar un rol diferente se solicitará confirmación antes de guardar los cambios en la base de datos.
+              <p class="modal-helper-text role-desc-text" v-if="selectedRoleDescription">
+                <i class="fa-solid fa-circle-info"></i> {{ selectedRoleDescription }}
+              </p>
+              <p class="modal-helper-text">
+                <i class="fa-solid fa-circle-info"></i> Al seleccionar un rol diferente se solicitará confirmación antes de guardar los cambios en la base de datos.
               </p>
             </div>
           </div>
@@ -192,7 +216,14 @@
                 <input type="email" :value="editForm.email" class="edit-input disabled-input" disabled title="El correo electrónico no se puede modificar">
                 <i class="fa-solid fa-lock locked-icon"></i>
               </div>
-              <p class="text-subtle text-xs mt-1">No es posible modificar el correo electrónico.</p>
+              <p class="modal-helper-text">
+                <i class="fa-solid fa-circle-info"></i> No es posible modificar el correo electrónico.
+              </p>
+            </div>
+
+            <div class="edit-form-group" v-if="user.hasPassword">
+              <label class="edit-label"><i class="fa-solid fa-key text-primary"></i> Nueva Contraseña:</label>
+              <input type="text" v-model="editForm.newPassword" class="edit-input" placeholder="Dejar en blanco para no cambiarla">
             </div>
 
             <div class="edit-form-group">
@@ -232,7 +263,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { showToast } from '../../utils/toast';
 
 const props = defineProps({
@@ -248,13 +279,29 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'save-user', 'request-role-change']);
 
+function copyUserEmail() {
+  if (navigator.clipboard && navigator.clipboard.writeText && props.user?.email) {
+    navigator.clipboard.writeText(props.user.email);
+    showToast.info('Correo copiado al portapapeles');
+  }
+}
+
+
+
+const selectedRoleDescription = computed(() => {
+  if (!props.tempRole) return '';
+  const match = props.roleOptions.find(r => (r.role || r.name) === props.tempRole);
+  return match ? match.description : '';
+});
+
 const isEditMode = ref(false);
 const showDeactivateConfirm = ref(false);
 const editForm = ref({
   name: '',
   email: '',
   role: '',
-  departmentId: null
+  departmentId: null,
+  newPassword: ''
 });
 const isSaving = ref(false);
 const saveError = ref('');
@@ -275,7 +322,8 @@ function startEditing() {
     name: props.user.name || '',
     email: props.user.email || '',
     role: props.user.role || 'operator',
-    departmentId: props.user.departmentId || null
+    departmentId: props.user.departmentId || null,
+    newPassword: ''
   };
   saveError.value = '';
   saveSuccess.value = '';
@@ -340,7 +388,8 @@ async function handleSave() {
     userData: {
       name: editForm.value.name.trim(),
       role: editForm.value.role,
-      departmentId: editForm.value.departmentId
+      departmentId: editForm.value.departmentId,
+      ...(editForm.value.newPassword ? { password: editForm.value.newPassword } : {})
     },
     onSuccess: () => {
       isSaving.value = false;
@@ -423,6 +472,19 @@ function onAvatarError(e, name) {
   outline: none;
 }
 
+.reset-pwd-btn {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
+}
+
+.reset-pwd-btn:hover {
+  background: #fef3c7;
+  color: #92400e;
+  border-color: #fcd34d;
+  transform: translateY(-1px);
+}
+
 .edit-action-btn {
   background: #f1f5f9;
   color: var(--primary, #1e3a8a);
@@ -434,6 +496,26 @@ function onAvatarError(e, name) {
   color: #1d4ed8;
   border-color: #c7d2fe;
   transform: translateY(-1px);
+}
+
+.inline-email-action {
+  color: var(--primary, #1e3a8a);
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  background: #f1f5f9;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  text-decoration: none;
+}
+
+.inline-email-action:hover {
+  background: #e0e7ff;
+  color: #1d4ed8;
+  transform: scale(1.1);
 }
 
 .deactivate-action-btn {
@@ -519,6 +601,13 @@ function onAvatarError(e, name) {
   font-weight: 800;
   color: var(--text-main, #1e293b);
   margin: 0;
+}
+
+.detail-user-email-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .detail-user-email {
@@ -725,5 +814,57 @@ function onAvatarError(e, name) {
   background: #f0fdf4;
   color: #166534;
   border: 1px solid #bbf7d0;
+}
+
+.modal-helper-text {
+  font-size: 11px;
+  color: var(--text-subtle, #64748b);
+  margin-top: 5px;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.role-desc-text {
+  color: #0d9488;
+  background: #f0fdfa;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccfbf1;
+  margin-bottom: 4px;
+}
+
+.role-desc-text i {
+  color: #0f766e;
+}
+
+.modal-helper-text i {
+  font-size: 10.5px;
+  color: var(--primary, #1e3a8a);
+  opacity: 0.75;
+}
+
+.user-name-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tiny-copy-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+}
+
+.tiny-copy-btn:hover {
+  color: var(--primary, #1e3a8a);
 }
 </style>

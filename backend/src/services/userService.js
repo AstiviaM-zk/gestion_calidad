@@ -270,7 +270,6 @@ export async function getAllUsers() {
        FROM qms.users u 
        LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
        LEFT JOIN qms.departments d ON u.department_id = d.id
-       WHERE u.is_active = TRUE
        ORDER BY u.created_at DESC`
     );
     const users = await Promise.all(res.rows.map(async (userRow) => {

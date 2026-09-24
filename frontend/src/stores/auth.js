@@ -7,7 +7,7 @@ export const useAuthStore = defineStore('auth', {
     user: JSON.parse(sessionStorage.getItem('qms_user')) || null,
     token: sessionStorage.getItem('qms_token') || '',
     isAuthenticated: !!sessionStorage.getItem('qms_token'),
-    googleClientId: '606541311192-nta8lgacqaaofml43jci2vcokumom3mp.apps.googleusercontent.com',
+    googleClientId: '',
     statusMessage: '',
     statusType: 'info',
     isLoading: false
@@ -141,7 +141,7 @@ export const useAuthStore = defineStore('auth', {
           sessionStorage.setItem('qms_token', data.token);
           sessionStorage.setItem('qms_user', JSON.stringify(data.user));
           this.statusMessage = '';
-          showToast.success(`¡Autenticación con Google exitosa! Bienvenido ${data.user?.name || ''}`);
+          showToast.success(`¡Bienvenido denuevo, ${data.user?.name || ''}!`);
           return true;
         } else {
           this.statusMessage = data.message || 'Error durante la autenticación de Google';

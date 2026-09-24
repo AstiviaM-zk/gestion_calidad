@@ -13,7 +13,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
  */
 router.get('/config', (req, res) => {
   res.json({
-    googleClientId: process.env.GOOGLE_CLIENT_ID || '606541311192-nta8lgacqaaofml43jci2vcokumom3mp.apps.googleusercontent.com'
+    googleClientId: process.env.GOOGLE_CLIENT_ID || ''
   });
 });
 
