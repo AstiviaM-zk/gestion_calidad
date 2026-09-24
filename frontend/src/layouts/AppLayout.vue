@@ -28,7 +28,7 @@ import AppNavbar from '../components/AppNavbar.vue';
 .app-layout-header {
   width: 100%;
   flex-shrink: 0;
-  padding: 12px 24px 0 24px;
+  padding: 0;
   display: flex;
   justify-content: center;
   box-sizing: border-box;
@@ -38,14 +38,14 @@ import AppNavbar from '../components/AppNavbar.vue';
 
 .app-layout-content {
   flex: 1;
-  height: calc(100vh - 80px);
+  height: calc(100vh - 62px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 16px 24px 20px 24px;
+  padding: 16px 28px 20px 28px;
   box-sizing: border-box;
   width: 100%;
-  max-width: 1360px;
+  max-width: 1500px;
   margin: 0 auto;
   position: relative;
   z-index: 10;

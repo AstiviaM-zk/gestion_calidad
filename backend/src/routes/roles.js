@@ -7,21 +7,28 @@ const router = express.Router();
 
 /**
  * GET /api/roles
- * Returns list of system and custom roles with permissions
+ * Returns list of system and custom roles with permissions from PostgreSQL
  */
-router.get('/roles', authenticateToken, (req, res) => {
-  const roles = getAllRoles();
-  res.json({
-    success: true,
-    roles
-  });
+router.get('/roles', authenticateToken, async (req, res) => {
+  try {
+    const roles = await getAllRoles();
+    res.json({
+      success: true,
+      roles
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Error al obtener roles'
+    });
+  }
 });
 
 /**
  * POST /api/roles
  * Creates a new custom role (Exclusivo Administradores)
  */
-router.post('/roles', authenticateToken, requireRole('admin_sgc'), (req, res) => {
+router.post('/roles', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
   try {
     const { name, description, permissions } = req.body;
 
@@ -32,7 +39,7 @@ router.post('/roles', authenticateToken, requireRole('admin_sgc'), (req, res) =>
       });
     }
 
-    const newRole = createRole({ name, description, permissions });
+    const newRole = await createRole({ name, description, permissions });
     res.status(201).json({
       success: true,
       message: 'Rol creado exitosamente',

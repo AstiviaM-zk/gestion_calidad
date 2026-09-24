@@ -1,6 +1,5 @@
-﻿/* ==========================================================================
-   QMS Institutional Design System (Sistema de GestiÃ³n de Calidad)
-   Paleta Institucional: Layout 100vh sin scroll de pÃ¡gina + Scroll interno en tabla
+/* ==========================================================================
+   QMS Institutional Design System (Sistema de Gestion de Calidad)
    ========================================================================== */
 
 :root {
@@ -9,28 +8,31 @@
 
   /* Paleta Institucional */
   --bg-main: #f8fafc;
-  --bg-secondary: #f1f5f9;
-  --bg-card: rgba(255, 255, 255, 0.92);
+  --bg-secondary: #f8fafc;
+  --bg-card: rgba(255, 255, 255, 0.94);
   --bg-card-hover: #ffffff;
-  --border-light: rgba(203, 213, 225, 0.8);
-  --border-glow: rgba(30, 58, 138, 0.25);
+  --border-light: rgba(226, 232, 240, 0.65);
+  --border-glow: rgba(30, 58, 138, 0.15);
 
   /* Colores Corporativos Institucionales */
-  --primary: #1e3a8a;               /* Azul Marino Institucional */
-  --primary-hover: #0f172a;         /* Azul Marino Oscuro */
-  --primary-light: #e0e7ff;         /* Tono Azul Claro */
+  --primary: #1e3a8a;
+  /* Azul Marino Institucional */
+  --primary-hover: #0f172a;
+  /* Azul Marino Oscuro */
+  --primary-light: #e0e7ff;
+  /* Tono Azul Claro */
   --primary-gradient: linear-gradient(135deg, #0f2942 0%, #1e3a8a 60%, #0284c7 100%);
-  
+
   /* Verde Institucional (#75ba21) */
-  --brand-green: #75ba21;           
-  --brand-green-hover: #64a01c;     
+  --brand-green: #75ba21;
+  --brand-green-hover: #64a01c;
   --brand-green-light: rgba(117, 186, 33, 0.12);
 
-  --accent-gold: #b45309;            
-  --accent-blue: #0284c7;            
-  --accent-emerald: #75ba21;         
-  --accent-amber: #d97706;           
-  --accent-rose: #be123c;            
+  --accent-gold: #b45309;
+  --accent-blue: #0284c7;
+  --accent-emerald: #75ba21;
+  --accent-amber: #d97706;
+  --accent-rose: #be123c;
 
   --text-main: #0f172a;
   --text-body: #1e293b;
@@ -42,9 +44,9 @@
   --radius-md: 10px;
   --radius-sm: 6px;
 
-  --shadow-soft: 0 4px 16px rgba(15, 23, 42, 0.04);
-  --shadow-card: 0 10px 30px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.08);
+  --shadow-soft: 0 4px 16px rgba(15, 23, 42, 0.02);
+  --shadow-card: 0 6px 20px rgba(15, 23, 42, 0.035), 0 1px 2px rgba(15, 23, 42, 0.02);
+  --shadow-lg: 0 16px 36px rgba(15, 23, 42, 0.05);
   --shadow-gradient: 0 8px 22px rgba(30, 58, 138, 0.28);
 
   --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -57,7 +59,8 @@
   padding: 0;
 }
 
-html, body {
+html,
+body {
   height: 100vh;
   max-height: 100vh;
   overflow: hidden !important;
@@ -114,9 +117,17 @@ html, body {
 }
 
 @keyframes floatGlobe {
-  0% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(50px, 30px) scale(1.08); }
-  100% { transform: translate(-30px, 60px) scale(0.95); }
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(50px, 30px) scale(1.08);
+  }
+
+  100% {
+    transform: translate(-30px, 60px) scale(0.95);
+  }
 }
 
 /* App Root Layout (Fijo en Viewport 100vh) */
@@ -386,7 +397,9 @@ html, body {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Alerts */
@@ -647,10 +660,25 @@ html, body {
   flex-shrink: 0;
 }
 
-.icon-blue { background: #e0e7ff; color: #1e3a8a; }
-.icon-amber { background: #fffbeb; color: #b45309; }
-.icon-emerald { background: rgba(117, 186, 33, 0.14); color: #75ba21; }
-.icon-purple { background: #f0f9ff; color: #0284c7; }
+.icon-blue {
+  background: #e0e7ff;
+  color: #1e3a8a;
+}
+
+.icon-amber {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.icon-emerald {
+  background: rgba(117, 186, 33, 0.14);
+  color: #75ba21;
+}
+
+.icon-purple {
+  background: #f0f9ff;
+  color: #0284c7;
+}
 
 .kpi-info {
   display: flex;
@@ -679,11 +707,25 @@ html, body {
   font-weight: 600;
 }
 
-.text-emerald { color: #75ba21 !important; }
-.text-amber { color: #b45309; }
-.text-purple { color: #0284c7; }
-.text-indigo { color: #1e3a8a; }
-.text-blue { color: #0284c7; }
+.text-emerald {
+  color: #75ba21 !important;
+}
+
+.text-amber {
+  color: #b45309;
+}
+
+.text-purple {
+  color: #0284c7;
+}
+
+.text-indigo {
+  color: #1e3a8a;
+}
+
+.text-blue {
+  color: #0284c7;
+}
 
 /* Panel Section con contenido flexible */
 .panel-section {
@@ -926,9 +968,20 @@ html, body {
   font-weight: 700;
 }
 
-.role-admin { background: #e0e7ff; color: #1e3a8a; }
-.role-user { background: #f0f9ff; color: #0284c7; }
-.role-auditor { background: rgba(117, 186, 33, 0.16); color: #558718; }
+.role-admin {
+  background: #e0e7ff;
+  color: #1e3a8a;
+}
+
+.role-user {
+  background: #f0f9ff;
+  color: #0284c7;
+}
+
+.role-auditor {
+  background: rgba(117, 186, 33, 0.16);
+  color: #558718;
+}
 
 .status-pill {
   display: inline-flex;
@@ -1046,8 +1099,15 @@ html, body {
   text-transform: uppercase;
 }
 
-.badge-system { background: #e0e7ff; color: #1e3a8a; }
-.badge-custom { background: rgba(117, 186, 33, 0.15); color: #558718; }
+.badge-system {
+  background: #e0e7ff;
+  color: #1e3a8a;
+}
+
+.badge-custom {
+  background: rgba(117, 186, 33, 0.15);
+  color: #558718;
+}
 
 .role-desc {
   font-size: 12px;
@@ -1271,12 +1331,29 @@ html, body {
 }
 
 /* Utility Helpers */
-.text-red { color: #dc2626; }
-.text-blue { color: #0284c7; }
-.text-green { color: #75ba21 !important; }
-.font-mono { font-family: monospace; }
-.font-bold { font-weight: 700; }
-.text-primary { color: var(--primary); }
+.text-red {
+  color: #dc2626;
+}
+
+.text-blue {
+  color: #0284c7;
+}
+
+.text-green {
+  color: #75ba21 !important;
+}
+
+.font-mono {
+  font-family: monospace;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.text-primary {
+  color: var(--primary);
+}
 
 .empty-state {
   padding: 30px 20px;
@@ -1313,19 +1390,24 @@ html, body {
 
 /* Responsive adjustments */
 @media (max-width: 900px) {
-  html, body, #app {
+
+  html,
+  body,
+  #app {
     overflow: auto !important;
     height: auto;
   }
+
   .admin-layout {
     grid-template-columns: 1fr;
   }
+
   .admin-sidebar {
     height: auto;
   }
+
   .app-navbar {
     width: calc(100% - 32px);
     padding: 12px 18px;
   }
 }
-

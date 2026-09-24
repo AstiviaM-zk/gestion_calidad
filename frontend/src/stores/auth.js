@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia';
 import api from '../services/api';
+import { showToast } from '../utils/toast';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: JSON.parse(sessionStorage.getItem('qms_user')) || null,
     token: sessionStorage.getItem('qms_token') || '',
     isAuthenticated: !!sessionStorage.getItem('qms_token'),
-    googleClientId: '606541311192-nta8lgacqaaofml43jci2vcokumom3mp.apps.googleusercontent.com',
+    googleClientId: '',
     statusMessage: '',
     statusType: 'info',
     isLoading: false
@@ -54,6 +55,10 @@ export const useAuthStore = defineStore('auth', {
         }
       } catch (err) {
         console.warn('No se pudo refrescar la información del usuario:', err.message);
+        if (err.response && err.response.status === 401) {
+          this.logout();
+          showToast.error(err.response.data?.message || 'Sesión expirada o inactiva.');
+        }
       }
     },
 
@@ -71,15 +76,18 @@ export const useAuthStore = defineStore('auth', {
           sessionStorage.setItem('qms_token', data.token);
           sessionStorage.setItem('qms_user', JSON.stringify(data.user));
           this.statusMessage = '';
+          showToast.success(`¡Bienvenido de nuevo, ${data.user?.name || ''}!`);
           return true;
         } else {
           this.statusMessage = data.message || 'Error en inicio de sesión';
           this.statusType = 'error';
+          showToast.error(this.statusMessage);
           return false;
         }
       } catch (err) {
         this.statusMessage = err.response?.data?.message || 'Error de conexión al iniciar sesión. ¿El servidor backend está activo?';
         this.statusType = 'error';
+        showToast.error(this.statusMessage);
         return false;
       } finally {
         this.isLoading = false;
@@ -100,15 +108,18 @@ export const useAuthStore = defineStore('auth', {
           sessionStorage.setItem('qms_token', data.token);
           sessionStorage.setItem('qms_user', JSON.stringify(data.user));
           this.statusMessage = '';
+          showToast.success('¡Registro de usuario completado exitosamente!');
           return true;
         } else {
           this.statusMessage = data.message || 'Error en registro';
           this.statusType = 'error';
+          showToast.error(this.statusMessage);
           return false;
         }
       } catch (err) {
         this.statusMessage = err.response?.data?.message || 'Error al registrar usuario';
         this.statusType = 'error';
+        showToast.error(this.statusMessage);
         return false;
       } finally {
         this.isLoading = false;
@@ -130,16 +141,19 @@ export const useAuthStore = defineStore('auth', {
           sessionStorage.setItem('qms_token', data.token);
           sessionStorage.setItem('qms_user', JSON.stringify(data.user));
           this.statusMessage = '';
+          showToast.success(`¡Bienvenido denuevo, ${data.user?.name || ''}!`);
           return true;
         } else {
           this.statusMessage = data.message || 'Error durante la autenticación de Google';
           this.statusType = 'error';
+          showToast.error(this.statusMessage);
           return false;
         }
       } catch (err) {
         console.error('Error en login de Google:', err);
         this.statusMessage = err.response?.data?.message || 'Error de conexión con el servidor backend (Puerto 3001)';
         this.statusType = 'error';
+        showToast.error(this.statusMessage);
         return false;
       } finally {
         this.isLoading = false;
@@ -153,6 +167,7 @@ export const useAuthStore = defineStore('auth', {
       this.statusMessage = '';
       sessionStorage.removeItem('qms_token');
       sessionStorage.removeItem('qms_user');
+      showToast.info('Sesión cerrada correctamente');
     }
   }
 });

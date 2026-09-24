@@ -1,123 +1,168 @@
 /**
- * Role Service - Administra los roles y permisos del sistema QMS
+ * Role Service - Administra los roles y permisos del sistema QMS directamente desde PostgreSQL
  */
-
-// Default system roles
-const rolesMap = new Map([
-  [
-    'admin_sgc',
-    {
-      id: 'ROLE-ADMIN-SGC',
-      role: 'admin_sgc',
-      name: 'Administrador (Calidad)',
-      description: 'CRUD total de plantillas, gestión de versiones, visibilidad de todas las evidencias de todas las áreas.',
-      badgeColor: 'role-admin',
-      permissions: [
-        { key: 'templates:crud', label: 'CRUD Total de Plantillas' },
-        { key: 'versions:manage', label: 'Gestión de Versiones' },
-        { key: 'evidences:view_all', label: 'Visibilidad Total de Evidencias' },
-        { key: 'users:manage', label: 'Gestión de Usuarios' },
-        { key: 'audit:logs', label: 'Ver Logs de Acceso' }
-      ],
-      isSystem: true
-    }
-  ],
-  [
-    'leader',
-    {
-      id: 'ROLE-LEADER',
-      role: 'leader',
-      name: 'Líder de Área (Dueño de proceso)',
-      description: 'Consulta plantillas generales y de su área; visualiza y valida evidencias subidas por su departamento.',
-      badgeColor: 'role-leader',
-      permissions: [
-        { key: 'templates:read_dept', label: 'Consulta Plantillas de Área' },
-        { key: 'evidences:validate_dept', label: 'Visualizar y Validar Evidencias de Área' }
-      ],
-      isSystem: true
-    }
-  ],
-  [
-    'operator',
-    {
-      id: 'ROLE-OPERATOR',
-      role: 'operator',
-      name: 'Usuario común / Operativo',
-      description: 'Consulta plantillas de su área en el visor seguro y sube sus formatos llenados/evidencias.',
-      badgeColor: 'role-operator',
-      permissions: [
-        { key: 'templates:read_viewer', label: 'Consulta Plantillas en Visor Seguro' },
-        { key: 'evidences:upload', label: 'Subir Formatos y Evidencias' }
-      ],
-      isSystem: true
-    }
-  ],
-  [
-    'auditor',
-    {
-      id: 'ROLE-AUDITOR',
-      role: 'auditor',
-      name: 'Auditor interno / externo',
-      description: 'Acceso de solo lectura global a plantillas vigentes, evidencias cargadas y logs de accesos para revisión.',
-      badgeColor: 'role-auditor',
-      permissions: [
-        { key: 'templates:read_global', label: 'Lectura Global de Plantillas' },
-        { key: 'evidences:read_global', label: 'Lectura Global de Evidencias' },
-        { key: 'audit:logs', label: 'Revisión de Logs de Acceso' }
-      ],
-      isSystem: true
-    }
-  ]
-]);
+import { query } from '../config/db.js';
 
 /**
- * Get all available roles
+ * Formatea un objeto de rol retornado por PostgreSQL asignando propiedades por defecto
  */
-export function getAllRoles() {
-  return Array.from(rolesMap.values());
+function formatRole(row, perms = []) {
+  if (!row) return null;
+  return {
+    ...row,
+    role: row.role || row.name || row.code || '',
+    name: row.name || row.role || '',
+    description: row.description || '',
+    isSystem: row.isSystem !== undefined ? row.isSystem : (row.is_system !== undefined ? row.is_system : false),
+    permissions: perms
+  };
 }
 
 /**
- * Get role object by role code/name
+ * Obtiene todos los roles registrados en PostgreSQL con sus respectivos permisos
  */
-export function getRoleByCode(roleCode) {
-  if (!roleCode) return null;
-  return rolesMap.get(roleCode) || null;
-}
+export async function getAllRoles() {
+  try {
+    const res = await query(
+      `SELECT r.*
+       FROM qms.roles r
+       ORDER BY r.id ASC`
+    );
+    
+    const roles = await Promise.all(res.rows.map(async (roleObj) => {
+      let perms = [];
+      try {
+        const permsRes = await query(
+          `SELECT p.* 
+           FROM qms.role_permissions rp
+           JOIN qms.permissions p ON rp.id_permission = p.id
+           WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
+          [roleObj.id]
+        );
+        if (permsRes.rows) {
+          perms = permsRes.rows.map(p => {
+            const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
+            return { key: k, label: p.description || p.label || k };
+          });
+        }
+      } catch (pErr) {
+        console.warn(`Error obteniendo permisos para el rol ${roleObj.name || roleObj.id}:`, pErr.message);
+      }
+      return formatRole(roleObj, perms);
+    }));
 
-/**
- * Get permission keys array for a given role
- */
-export function getPermissionsForRole(roleCode) {
-  const roleObj = getRoleByCode(roleCode);
-  if (!roleObj || !roleObj.permissions) {
-    // Default fallback for unknown roles: operator basic permissions
-    return ['templates:read_viewer', 'evidences:upload'];
+    return roles;
+  } catch (err) {
+    console.error('Error al obtener roles de PostgreSQL:', err.message);
+    return [];
   }
+}
+
+/**
+ * Obtiene un rol por su código o nombre desde PostgreSQL
+ */
+export async function getRoleByCode(roleCode) {
+  if (!roleCode) return null;
+  try {
+    const res = await query(
+      `SELECT r.*
+       FROM qms.roles r
+       WHERE LOWER(r.name) = LOWER($1) OR LOWER(CAST(r.id AS text)) = LOWER($1)`,
+      [roleCode.trim()]
+    );
+    if (res.rows.length > 0) {
+      const roleObj = res.rows[0];
+      const permsRes = await query(
+        `SELECT p.* 
+         FROM qms.role_permissions rp
+         JOIN qms.permissions p ON rp.id_permission = p.id
+         WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
+        [roleObj.id]
+      );
+      const perms = permsRes.rows ? permsRes.rows.map(p => {
+        const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
+        return { key: k, label: p.description || p.label || k };
+      }) : [];
+      return formatRole(roleObj, perms);
+    }
+  } catch (err) {
+    console.error('Error al obtener rol por código:', err.message);
+  }
+  return null;
+}
+
+/**
+ * Obtiene un arreglo de llaves de permisos (strings) para un rol dado desde PostgreSQL
+ */
+export async function getPermissionsForRole(roleCode) {
+  const roleObj = await getRoleByCode(roleCode);
+  if (!roleObj || !roleObj.permissions) return [];
   return roleObj.permissions.map(p => typeof p === 'string' ? p : p.key);
 }
 
 /**
- * Create a new custom role
+ * Crea un nuevo rol personalizado directamente en PostgreSQL (qms.roles y qms.role_permissions)
  */
-export function createRole(roleData) {
-  if (!roleData || !roleData.name) return null;
-
-  const roleName = roleData.name.trim();
-  if (rolesMap.has(roleName)) {
-    throw new Error(`El rol "${roleName}" ya existe en el sistema.`);
+export async function createRole(roleData) {
+  if (!roleData || !roleData.name) {
+    throw new Error('El nombre del rol es obligatorio.');
   }
 
-  const newRole = {
-    id: `ROLE-${Date.now().toString().slice(-4)}`,
-    role: roleName.toLowerCase().replace(/\s+/g, '_'),
-    name: roleName,
-    description: roleData.description || 'Rol personalizado del sistema QMS.',
-    badgeColor: 'role-custom',
-    permissions: roleData.permissions || [{ key: 'templates:read_viewer', label: 'Consulta de Plantillas' }],
-    isSystem: false
-  };
+  const roleName = roleData.name.trim();
+  const description = roleData.description || 'Rol personalizado del sistema QMS.';
 
-  rolesMap.set(roleName, newRole);
-  return newRole;
+  // Verificar si ya existe
+  const existingRes = await query(
+    `SELECT id FROM qms.roles WHERE LOWER(name) = LOWER($1)`,
+    [roleName]
+  );
+  if (existingRes.rows.length > 0) {
+    throw new Error(`El rol "${roleName}" ya existe en la base de datos.`);
+  }
+
+  let insertRes;
+  try {
+    insertRes = await query(
+      `INSERT INTO qms.roles (name, description)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [roleName, description]
+    );
+  } catch (err) {
+    insertRes = await query(
+      `INSERT INTO qms.roles (name)
+       VALUES ($1)
+       RETURNING *`,
+      [roleName]
+    );
+  }
+
+  const newRole = insertRes.rows[0];
+  const createdPerms = [];
+
+  if (Array.isArray(roleData.permissions)) {
+    for (const perm of roleData.permissions) {
+      const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name || perm.code);
+      if (keyStr) {
+        try {
+          const permRes = await query(
+            `SELECT id FROM qms.permissions WHERE key = $1 OR code = $1 OR name = $1 LIMIT 1`,
+            [keyStr]
+          );
+          if (permRes.rows.length > 0) {
+            const permId = permRes.rows[0].id;
+            await query(
+              `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+              [newRole.id, permId]
+            );
+          }
+        } catch (e) {
+          console.warn('Error vinculando permiso al nuevo rol:', e.message);
+        }
+        createdPerms.push({ key: keyStr, label: keyStr });
+      }
+    }
+  }
+
+  return formatRole(newRole, createdPerms);
 }

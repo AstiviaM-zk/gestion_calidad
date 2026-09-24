@@ -20,6 +20,7 @@
         </button>
 
         <button 
+          v-if="canReadDocuments"
           :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
           @click="navigate('/dashboard/documents')"
         >
@@ -29,7 +30,7 @@
         </button>
 
         <button 
-          v-if="canManageUsers"
+          v-if="canReadUsers"
           :class="['nav-item', { active: isTabActive('/dashboard/users') }]"
           @click="navigate('/dashboard/users')"
         >
@@ -39,7 +40,7 @@
         </button>
 
         <button 
-          v-if="canManageRoles"
+          v-if="canReadRoles"
           :class="['nav-item', { active: isTabActive('/dashboard/roles') }]"
           @click="navigate('/dashboard/roles')"
         >
@@ -58,8 +59,9 @@
       </nav>
 
       <div class="sidebar-footer">
-        <button class="btn btn-secondary btn-sm" @click="handleLogout">
-          <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+        <button class="btn btn-secondary btn-full" @click="handleLogout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Cerrar Sesión</span>
         </button>
       </div>
     </aside>
@@ -89,8 +91,9 @@ const roleStore = useRoleStore();
 const user = computed(() => authStore.user);
 const userRole = computed(() => user.value?.role || 'operator');
 
-const canManageUsers = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
-const canManageRoles = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
+const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
+const canReadUsers = computed(() => authStore.hasPermission('users:read'));
+const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
 
 const roleLabel = computed(() => {
   switch (userRole.value) {
@@ -133,9 +136,13 @@ function onAvatarError(e) {
 
 onMounted(async () => {
   await authStore.fetchCurrentUser();
-  documentStore.fetchAll();
-  if (canManageUsers.value) {
+  if (canReadDocuments.value) {
+    documentStore.fetchAll();
+  }
+  if (canReadUsers.value) {
     userStore.fetchUsers();
+  }
+  if (canReadRoles.value) {
     roleStore.fetchRoles();
   }
 });
@@ -144,8 +151,8 @@ onMounted(async () => {
 <style scoped>
 .admin-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 20px;
+  grid-template-columns: 290px 1fr;
+  gap: 16px;
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -195,7 +202,7 @@ onMounted(async () => {
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  max-width: 180px;
   white-space: nowrap;
 }
 
@@ -280,6 +287,17 @@ onMounted(async () => {
 .sidebar-footer {
   padding-top: 12px;
   border-top: 1px solid var(--border-light);
+  width: 100%;
+}
+
+.sidebar-footer .btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
 }
 
 .admin-main {
