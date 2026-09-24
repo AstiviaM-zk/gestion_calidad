@@ -20,6 +20,7 @@
       :department-options="departmentOptions"
       :current-user-email="currentUserEmail"
       :can-update-user="canUpdateUser"
+      :can-delete-user="canDeleteUser"
       @close="closeDetailModal"
       @save-user="handleSaveUser"
       @request-role-change="handleRoleSelectInModal"
@@ -60,6 +61,10 @@ const currentUserEmail = computed(() => authStore.user?.email);
 
 const canUpdateUser = computed(() => {
   return authStore.user?.role === 'admin_sgc' || authStore.hasPermission('users:update');
+});
+
+const canDeleteUser = computed(() => {
+  return authStore.user?.role === 'admin_sgc' || authStore.hasPermission('users:delete');
 });
 
 // Modales y usuario seleccionado

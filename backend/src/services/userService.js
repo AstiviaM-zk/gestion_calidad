@@ -147,11 +147,14 @@ export async function upsertUserFromGoogle(googleUser) {
   try {
     const existingUser = await getUserByEmail(email);
     if (existingUser) {
+      if (existingUser.isActive === false) {
+        throw new Error('Tu cuenta se encuentra inactiva. Contacta al administrador del sistema.');
+      }
       await query(
         `UPDATE qms.users 
          SET full_name = $1, google_id = COALESCE($2, google_id), 
              avatar_url = COALESCE($3, avatar_url), 
-             google_login_enabled = TRUE, is_active = TRUE,
+             google_login_enabled = TRUE,
              last_login = CURRENT_TIMESTAMP
          WHERE LOWER(email) = $4`,
         [sanitizedName, googleUser.googleId, avatarUrl, email]
@@ -231,6 +234,10 @@ export async function loginFormUser({ email, password }) {
   }
 
   const userRow = res.rows[0];
+  if (userRow.is_active === false) {
+    throw new Error('Tu cuenta se encuentra inactiva. Contacta al administrador del sistema.');
+  }
+
   if (!userRow.password_hash) {
     if (userRow.google_login_enabled) {
       throw new Error('Esta cuenta fue creada con inicio de sesión de Google. Por favor inicia sesión usando el botón de Google.');
@@ -371,9 +378,10 @@ export async function getAllDepartments() {
  */
 export async function updateUser(id, userData) {
   try {
-    const { full_name, name, role, department_id, departmentId } = userData;
+    const { full_name, name, role, department_id, departmentId, is_active, isActive } = userData;
     const nameToUse = full_name || name;
     const deptIdToUse = department_id !== undefined ? department_id : departmentId;
+    const isActiveToUse = is_active !== undefined ? is_active : isActive;
 
     const updates = [];
     const values = [];
@@ -403,6 +411,11 @@ export async function updateUser(id, userData) {
           values.push(parsedDept);
         }
       }
+    }
+
+    if (isActiveToUse !== undefined && isActiveToUse !== null) {
+      updates.push(`is_active = $${paramIdx++}`);
+      values.push(Boolean(isActiveToUse));
     }
 
     if (updates.length === 0) {

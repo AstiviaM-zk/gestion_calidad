@@ -2,8 +2,56 @@
   <Teleport to="body">
     <div v-if="show && user" class="modal-backdrop" @click.self="$emit('close')">
       <div class="modal-card detail-modal-card shadow-lg glass-card">
+        <!-- MODO CONFIRMACIÓN DE DESACTIVACIÓN -->
+        <template v-if="showDeactivateConfirm">
+          <div class="detail-header deactivate-header">
+            <div class="detail-user-identity">
+              <div class="deactivate-icon-avatar">
+                <i class="fa-solid fa-user-slash text-danger"></i>
+              </div>
+              <div class="detail-user-main">
+                <h4 class="detail-user-name">Desactivar Usuario</h4>
+                <span class="detail-user-email">Confirmación de desactivación</span>
+              </div>
+            </div>
+            <button type="button" class="close-modal-btn icon-btn" @click="cancelDeactivate" title="Cancelar">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <div class="detail-body">
+            <div v-if="saveError" class="alert-box alert-error">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <span>{{ saveError }}</span>
+            </div>
+
+            <div class="deactivate-warning-box">
+              <div class="warning-icon-wrapper">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div class="warning-text">
+                <p class="warning-title">¿Desactivar al usuario <strong>{{ user.name }}</strong>?</p>
+                <p class="warning-desc">
+                  El usuario quedará inactivo en la base de datos y perderá inmediatamente el acceso al sistema QMS hasta que vuelva a ser activado.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary btn-sm" @click="cancelDeactivate" :disabled="isSaving">
+              Cancelar
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" @click="confirmDeactivate" :disabled="isSaving">
+              <i class="fa-solid fa-user-slash" v-if="!isSaving"></i>
+              <i class="fa-solid fa-spinner fa-spin" v-else></i>
+              {{ isSaving ? 'Desactivando...' : 'Sí, Desactivar' }}
+            </button>
+          </div>
+        </template>
+
         <!-- MODO VISUALIZACIÓN / DETALLE -->
-        <template v-if="!isEditMode">
+        <template v-else-if="!isEditMode">
           <div class="detail-header">
             <div class="detail-user-identity">
               <img 
@@ -17,9 +65,37 @@
                 <span class="detail-user-email">{{ user.email }}</span>
               </div>
             </div>
-            <button type="button" class="close-modal-btn icon-btn" @click="$emit('close')" title="Cerrar modal">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
+
+            <div class="header-action-group">
+              <button 
+                v-if="canUpdateUser" 
+                type="button" 
+                class="header-action-btn edit-action-btn" 
+                @click="startEditing" 
+                title="Editar información"
+              >
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+
+              <button 
+                v-if="canDeleteUser && user.email !== currentUserEmail" 
+                type="button" 
+                class="header-action-btn deactivate-action-btn" 
+                @click="triggerDeactivateConfirm" 
+                title="Desactivar usuario"
+              >
+                <i class="fa-solid fa-user-slash"></i>
+              </button>
+
+              <button 
+                type="button" 
+                class="close-modal-btn icon-btn" 
+                @click="$emit('close')" 
+                title="Cerrar modal"
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
           </div>
 
           <div class="detail-body">
@@ -84,9 +160,6 @@
           </div>
 
           <div class="modal-footer">
-            <button v-if="canUpdateUser" type="button" class="btn btn-outline-primary btn-sm" @click="startEditing">
-              <i class="fa-solid fa-pen-to-square"></i> Editar Información
-            </button>
             <button type="button" class="btn btn-secondary btn-sm" @click="$emit('close')">
               Cerrar
             </button>
@@ -180,12 +253,14 @@ const props = defineProps({
   roleOptions: { type: Array, required: true },
   departmentOptions: { type: Array, required: true },
   currentUserEmail: { type: String, default: '' },
-  canUpdateUser: { type: Boolean, default: false }
+  canUpdateUser: { type: Boolean, default: false },
+  canDeleteUser: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['close', 'save-user', 'request-role-change']);
 
 const isEditMode = ref(false);
+const showDeactivateConfirm = ref(false);
 const editForm = ref({
   name: '',
   email: '',
@@ -199,6 +274,7 @@ const saveSuccess = ref('');
 watch(() => props.show, (newVal) => {
   if (!newVal) {
     isEditMode.value = false;
+    showDeactivateConfirm.value = false;
     saveError.value = '';
     saveSuccess.value = '';
   }
@@ -214,6 +290,7 @@ function startEditing() {
   };
   saveError.value = '';
   saveSuccess.value = '';
+  showDeactivateConfirm.value = false;
   isEditMode.value = true;
 }
 
@@ -221,6 +298,41 @@ function cancelEditing() {
   isEditMode.value = false;
   saveError.value = '';
   saveSuccess.value = '';
+}
+
+function triggerDeactivateConfirm() {
+  saveError.value = '';
+  saveSuccess.value = '';
+  isEditMode.value = false;
+  showDeactivateConfirm.value = true;
+}
+
+function cancelDeactivate() {
+  showDeactivateConfirm.value = false;
+  saveError.value = '';
+}
+
+async function confirmDeactivate() {
+  if (!props.user || !props.user.id) return;
+
+  isSaving.value = true;
+  saveError.value = '';
+
+  emit('save-user', {
+    id: props.user.id,
+    userData: {
+      isActive: false
+    },
+    onSuccess: () => {
+      isSaving.value = false;
+      showDeactivateConfirm.value = false;
+      emit('close');
+    },
+    onError: (msg) => {
+      isSaving.value = false;
+      saveError.value = msg || 'Error al desactivar el usuario';
+    }
+  });
 }
 
 async function handleSave() {
@@ -304,6 +416,104 @@ function onAvatarError(e, name) {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.header-action-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-action-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+}
+
+.edit-action-btn {
+  background: #f1f5f9;
+  color: var(--primary, #1e3a8a);
+  border-color: #e2e8f0;
+}
+
+.edit-action-btn:hover {
+  background: #e0e7ff;
+  color: #1d4ed8;
+  border-color: #c7d2fe;
+  transform: translateY(-1px);
+}
+
+.deactivate-action-btn {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fee2e2;
+}
+
+.deactivate-action-btn:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+  transform: translateY(-1px);
+}
+
+.deactivate-icon-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(220, 38, 38, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.deactivate-warning-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.warning-icon-wrapper {
+  font-size: 22px;
+  color: #dc2626;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.warning-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0 0 6px 0;
+}
+
+.warning-desc {
+  font-size: 12.5px;
+  color: #7f1d1d;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: #ffffff;
+  border: 1px solid #b91c1c;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
 }
 
 .detail-avatar {
