@@ -50,11 +50,6 @@ const routes = [
         name: 'dashboard-roles',
         component: () => import('../components/roles_permissions/RoleManager.vue'),
         meta: { requiredPermission: 'roles:read' }
-      },
-      {
-        path: 'profile',
-        name: 'dashboard-profile',
-        component: () => import('../components/UserProfile.vue')
       }
     ]
   },
