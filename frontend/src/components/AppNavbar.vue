@@ -63,51 +63,7 @@
 
             <!-- Navegación Móvil -->
             <nav class="drawer-nav">
-              <span class="drawer-section-title">Navegación del Sistema</span>
-              
-              <button 
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/overview') }]"
-                @click="navigate('/dashboard/overview')"
-              >
-                <i class="fa-solid fa-chart-pie"></i>
-                <span>Resumen Dashboard</span>
-              </button>
-
-              <button 
-                v-if="canReadDocuments"
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/documents') }]"
-                @click="navigate('/dashboard/documents')"
-              >
-                <i class="fa-solid fa-folder-closed"></i>
-                <span>Gestor de Documentos</span>
-                <span class="badge-count" v-if="documentsCount">{{ documentsCount }}</span>
-              </button>
-
-              <button 
-                v-if="canReadUsers"
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/users') }]"
-                @click="navigate('/dashboard/users')"
-              >
-                <i class="fa-solid fa-users"></i>
-                <span>Usuarios</span>
-              </button>
-
-              <button 
-                v-if="canReadRoles"
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/roles') }]"
-                @click="navigate('/dashboard/roles')"
-              >
-                <i class="fa-solid fa-user-gear"></i>
-                <span>Roles y Permisos</span>
-              </button>
-
-              <button 
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/profile') }]"
-                @click="navigate('/dashboard/profile')"
-              >
-                <i class="fa-solid fa-circle-user"></i>
-                <span>Mi Perfil & Token</span>
-              </button>
+              <NavLinks @navigate="navigate" />
             </nav>
 
             <div class="drawer-status-box">
@@ -130,26 +86,16 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import NavLinks from "./NavLinks.vue";
 import { useAuthStore } from "../stores/auth";
-import { useDocumentStore } from "../stores/documents";
-import { useUserStore } from "../stores/users";
-import { useRoleStore } from "../stores/roles";
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
-const documentStore = useDocumentStore();
-const userStore = useUserStore();
-const roleStore = useRoleStore();
 
 const isMobileMenuOpen = ref(false);
 
 const user = computed(() => authStore.user);
-const documentsCount = computed(() => documentStore.documents.length);
-
-const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
-const canReadUsers = computed(() => authStore.hasPermission('users:read'));
-const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
 
 const userAvatar = computed(() => {
   return user.value?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.value?.name || "User") + "&background=1e3a8a&color=fff";
