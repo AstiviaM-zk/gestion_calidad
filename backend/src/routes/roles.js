@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllRoles, createRole, getAllPermissions } from '../services/roleService.js';
+import { getAllRoles, createRole, getAllPermissions, updateRole, deleteRole } from '../services/roleService.js';
 import { updateUserRole } from '../services/userService.js';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware.js';
 
@@ -72,6 +72,48 @@ router.post('/roles', authenticateToken, requireRole('admin_sgc'), async (req, r
   }
 });
 
+/**
+ * PUT /api/roles/:code
+ * Updates an existing role and its permissions (Exclusivo Administradores)
+ */
+router.put('/roles/:code', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { name, description, permissions } = req.body;
+
+    const updatedRole = await updateRole(code, { name, description, permissions });
+    res.json({
+      success: true,
+      message: 'Rol actualizado exitosamente',
+      role: updatedRole
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Error al actualizar el rol'
+    });
+  }
+});
+
+/**
+ * DELETE /api/roles/:code
+ * Deletes an existing role if it has no associated users (Exclusivo Administradores)
+ */
+router.delete('/roles/:code', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
+  try {
+    const { code } = req.params;
+    await deleteRole(code);
+    res.json({
+      success: true,
+      message: 'Rol eliminado exitosamente'
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Error al eliminar el rol'
+    });
+  }
+});
 /**
  * PUT /api/users/:email/role
  * Updates an authenticated user's role (Exclusivo Administradores)

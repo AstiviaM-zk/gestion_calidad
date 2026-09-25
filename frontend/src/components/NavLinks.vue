@@ -15,7 +15,7 @@
     @click="navigate('/dashboard/documents')"
   >
     <i class="fa-solid fa-folder-closed"></i>
-    <span>Gestor de Documentos</span>
+    <span>Documentos</span>
   </button>
 
   <div class="nav-section-title" v-if="canReadDepartments || canReadUsers || canReadRoles">Administración</div>
@@ -45,14 +45,6 @@
   >
     <i class="fa-solid fa-user-gear"></i>
     <span>Roles y Permisos</span>
-  </button>
-
-  <button 
-    :class="['nav-item', { active: isTabActive('/dashboard/profile') }]"
-    @click="navigate('/dashboard/profile')"
-  >
-    <i class="fa-solid fa-circle-user"></i>
-    <span>Mi Perfil</span>
   </button>
 </template>
 
