@@ -40,16 +40,21 @@
         <div class="permissions-container">
           <span class="perm-title">Alcance de Permisos:</span>
           <div class="perm-tags">
-            <span 
-              v-for="perm in role.permissions?.slice(0, 9)" 
-              :key="perm.key || perm" 
-              class="perm-tag"
-            >
-              <i class="fa-solid fa-check text-emerald"></i> {{ perm.label || perm }}
+            <span v-if="!role.permissions || role.permissions.length === 0" class="perm-tag" style="opacity: 0.7;">
+              <i class="fa-solid fa-circle-exclamation text-muted"></i> Sin permisos asignados
             </span>
-            <span v-if="role.permissions?.length > 9" class="perm-tag more-tag" :title="role.permissions.slice(9).map(p => p.label || p).join(', ')">
-              +{{ role.permissions.length - 9 }} permisos
-            </span>
+            <template v-else>
+              <span 
+                v-for="perm in role.permissions.slice(0, 9)" 
+                :key="perm.key || perm" 
+                class="perm-tag"
+              >
+                <i class="fa-solid fa-check text-emerald"></i> {{ perm.label || perm }}
+              </span>
+              <span v-if="role.permissions.length > 9" class="perm-tag more-tag" :title="role.permissions.slice(9).map(p => p.label || p).join(', ')">
+                +{{ role.permissions.length - 9 }} permisos
+              </span>
+            </template>
           </div>
         </div>
       </div>
@@ -112,8 +117,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { useRoleStore } from "../stores/roles";
-import { useUserStore } from "../stores/users";
+import { useRoleStore } from "../../stores/roles";
+import { useUserStore } from "../../stores/users";
 
 const props = defineProps({
   roles: { type: Array, default: null },

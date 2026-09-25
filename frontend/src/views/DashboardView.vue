@@ -49,7 +49,6 @@
         >
           <i class="fa-solid fa-users"></i>
           <span>Usuarios</span>
-          <span class="badge-count light">{{ userStore.users.length }}</span>
         </button>
 
         <button 
@@ -59,7 +58,6 @@
         >
           <i class="fa-solid fa-user-gear"></i>
           <span>Roles y Permisos</span>
-          <span class="badge-count light">{{ roleStore.roles.length || 3 }}</span>
         </button>
 
         <button 

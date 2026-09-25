@@ -48,7 +48,7 @@ const routes = [
       {
         path: 'roles',
         name: 'dashboard-roles',
-        component: () => import('../components/RoleManager.vue'),
+        component: () => import('../components/roles_permissions/RoleManager.vue'),
         meta: { requiredPermission: 'roles:read' }
       },
       {
