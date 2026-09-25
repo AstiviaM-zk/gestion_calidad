@@ -51,6 +51,40 @@ export const useRoleStore = defineStore('roles', {
           message: err.response?.data?.message || 'Error al crear el rol'
         };
       }
+    },
+
+    async updateRole(roleCode, roleData) {
+      try {
+        const { data } = await api.put(`/roles/${roleCode}`, roleData);
+        if (data.success) {
+          await this.fetchRoles();
+          return { success: true, message: data.message, role: data.role };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        console.error('Error actualizando rol:', err);
+        return {
+          success: false,
+          message: err.response?.data?.message || 'Error al actualizar el rol'
+        };
+      }
+    },
+    
+    async deleteRole(roleCode) {
+      try {
+        const { data } = await api.delete(`/roles/${roleCode}`);
+        if (data.success) {
+          await this.fetchRoles();
+          return { success: true, message: data.message };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        console.error('Error eliminando rol:', err);
+        return {
+          success: false,
+          message: err.response?.data?.message || 'Error al eliminar el rol'
+        };
+      }
     }
   }
 });

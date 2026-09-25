@@ -42,7 +42,7 @@ export async function getAllRoles() {
         if (permsRes.rows) {
           perms = permsRes.rows.map(p => {
             const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-            return { key: k, label: p.name || p.label || p.description || k };
+            return { id: p.id, key: k, label: p.name || p.label || k, description: p.description || '' };
           });
         }
       } catch (pErr) {
@@ -68,7 +68,7 @@ export async function getAllPermissions() {
     );
     return res.rows.map(p => {
       const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-      return { key: k, label: p.name || p.label || p.description || k };
+      return { id: p.id, key: k, label: p.name || p.label || k, module: p.module || 'Otros', description: p.description || '' };
     });
   } catch (err) {
     console.error('Error al obtener permisos de PostgreSQL:', err.message);
@@ -99,7 +99,7 @@ export async function getRoleByCode(roleCode) {
       );
       const perms = permsRes.rows ? permsRes.rows.map(p => {
         const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-        return { key: k, label: p.name || p.label || p.description || k };
+        return { id: p.id, key: k, label: p.name || p.label || k, description: p.description || '' };
       }) : [];
       return formatRole(roleObj, perms);
     }
@@ -141,17 +141,17 @@ export async function createRole(roleData) {
   let insertRes;
   try {
     insertRes = await query(
-      `INSERT INTO qms.roles (name, description)
-       VALUES ($1, $2)
+      `INSERT INTO qms.roles (name, description, is_system)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [roleName, description]
+      [roleName, description, roleData.is_system || false]
     );
   } catch (err) {
     insertRes = await query(
-      `INSERT INTO qms.roles (name)
-       VALUES ($1)
+      `INSERT INTO qms.roles (name, is_system)
+       VALUES ($1, $2)
        RETURNING *`,
-      [roleName]
+      [roleName, roleData.is_system || false]
     );
   }
 
@@ -160,27 +160,125 @@ export async function createRole(roleData) {
 
   if (Array.isArray(roleData.permissions)) {
     for (const perm of roleData.permissions) {
-      const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name || perm.code);
-      if (keyStr) {
-        try {
-          const permRes = await query(
-            `SELECT id FROM qms.permissions WHERE key = $1 OR code = $1 OR name = $1 LIMIT 1`,
-            [keyStr]
-          );
-          if (permRes.rows.length > 0) {
-            const permId = permRes.rows[0].id;
-            await query(
-              `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-              [newRole.id, permId]
+      let permId = typeof perm === 'object' ? perm.id : null;
+      if (!permId) {
+        const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name);
+        if (keyStr) {
+          try {
+            const permRes = await query(
+              `SELECT id FROM qms.permissions WHERE key = $1 OR name = $1 LIMIT 1`,
+              [keyStr]
             );
+            if (permRes.rows.length > 0) {
+              permId = permRes.rows[0].id;
+            }
+          } catch (e) {
+            console.warn('Error buscando permiso:', e.message);
           }
+        }
+      }
+
+      if (permId) {
+        try {
+          await query(
+            `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2)`,
+            [newRole.id, permId]
+          );
+          createdPerms.push({ key: perm.key || perm, label: perm.label || perm });
         } catch (e) {
           console.warn('Error vinculando permiso al nuevo rol:', e.message);
         }
-        createdPerms.push({ key: keyStr, label: keyStr });
       }
     }
   }
 
   return formatRole(newRole, createdPerms);
+}
+
+/**
+ * Actualiza un rol existente y sus permisos
+ */
+export async function updateRole(roleCode, roleData) {
+  const roleObj = await getRoleByCode(roleCode);
+  if (!roleObj) {
+    throw new Error('Rol no encontrado');
+  }
+
+  const name = roleObj.isSystem ? roleObj.name : (roleData.name || roleObj.name);
+  const description = roleData.description !== undefined ? roleData.description : roleObj.description;
+
+  try {
+    await query(
+      `UPDATE qms.roles SET name = $1, description = $2 WHERE id = $3`,
+      [name, description, roleObj.id]
+    );
+  } catch (err) {
+    console.error('Error actualizando rol básico:', err.message);
+  }
+
+  if (Array.isArray(roleData.permissions)) {
+    try {
+      await query(`DELETE FROM qms.role_permissions WHERE id_role = $1`, [roleObj.id]);
+      
+      for (const perm of roleData.permissions) {
+        let permId = typeof perm === 'object' ? perm.id : null;
+        if (!permId) {
+          const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name);
+          if (keyStr) {
+            const permRes = await query(
+              `SELECT id FROM qms.permissions WHERE key = $1 OR name = $1 LIMIT 1`,
+              [keyStr]
+            );
+            if (permRes.rows.length > 0) {
+              permId = permRes.rows[0].id;
+            }
+          }
+        }
+        
+        if (permId) {
+          try {
+            await query(
+              `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2)`,
+              [roleObj.id, permId]
+            );
+          } catch (insertErr) {
+            console.warn('El permiso ya estaba vinculado o no es válido:', insertErr.message);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error vinculando permisos actualizados:', e.message);
+    }
+  }
+
+  return await getRoleByCode(String(roleObj.id));
+}
+
+/**
+ * Elimina un rol existente siempre y cuando no tenga usuarios asociados
+ * y no sea un rol del sistema.
+ */
+export async function deleteRole(roleCode) {
+  const roleObj = await getRoleByCode(roleCode);
+  if (!roleObj) {
+    throw new Error('Rol no encontrado');
+  }
+
+  if (roleObj.isSystem || roleObj.is_system) {
+    throw new Error('No se pueden eliminar roles de sistema');
+  }
+
+  const usersRes = await query(`SELECT COUNT(*) as count FROM qms.users WHERE id_role = $1`, [roleObj.id]);
+  const userCount = parseInt(usersRes.rows[0].count, 10);
+  if (userCount > 0) {
+    throw new Error('Este rol tiene usuarios asociados');
+  }
+
+  // Delete permissions mappings
+  await query(`DELETE FROM qms.role_permissions WHERE id_role = $1`, [roleObj.id]);
+  
+  // Delete the role
+  await query(`DELETE FROM qms.roles WHERE id = $1`, [roleObj.id]);
+  
+  return true;
 }
