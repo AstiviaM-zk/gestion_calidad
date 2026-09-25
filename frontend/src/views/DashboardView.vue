@@ -11,62 +11,7 @@
       </div>
 
       <nav class="sidebar-nav">
-        <div class="nav-section-title">Principal</div>
-        
-        <button 
-          :class="['nav-item', { active: isTabActive('/dashboard/overview') }]"
-          @click="navigate('/dashboard/overview')"
-        >
-          <i class="fa-solid fa-chart-pie"></i>
-          <span>Resumen Dashboard</span>
-        </button>
-
-        <button 
-          v-if="canReadDocuments"
-          :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
-          @click="navigate('/dashboard/documents')"
-        >
-          <i class="fa-solid fa-folder-closed"></i>
-          <span>Gestor de Documentos</span>
-          <span class="badge-count">{{ documentStore.documents.length }}</span>
-        </button>
-
-        <div class="nav-section-title" v-if="canReadDepartments || canReadUsers || canReadRoles">Administración</div>
-
-        <button 
-          v-if="canReadDepartments"
-          :class="['nav-item', { active: isTabActive('/dashboard/departments') }]"
-          @click="navigate('/dashboard/departments')"
-        >
-          <i class="fa-solid fa-building"></i>
-          <span>Departamentos</span>
-        </button>
-
-        <button 
-          v-if="canReadUsers"
-          :class="['nav-item', { active: isTabActive('/dashboard/users') }]"
-          @click="navigate('/dashboard/users')"
-        >
-          <i class="fa-solid fa-users"></i>
-          <span>Usuarios</span>
-        </button>
-
-        <button 
-          v-if="canReadRoles"
-          :class="['nav-item', { active: isTabActive('/dashboard/roles') }]"
-          @click="navigate('/dashboard/roles')"
-        >
-          <i class="fa-solid fa-user-gear"></i>
-          <span>Roles y Permisos</span>
-        </button>
-
-        <button 
-          :class="['nav-item', { active: isTabActive('/dashboard/profile') }]"
-          @click="navigate('/dashboard/profile')"
-        >
-          <i class="fa-solid fa-circle-user"></i>
-          <span>Mi Perfil</span>
-        </button>
+        <NavLinks @navigate="navigate" />
       </nav>
 
       <div class="sidebar-footer">
@@ -86,6 +31,7 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import NavLinks from '../components/NavLinks.vue';
 import { useAuthStore } from '../stores/auth';
 import { useDocumentStore } from '../stores/documents';
 import { useUserStore } from '../stores/users';
