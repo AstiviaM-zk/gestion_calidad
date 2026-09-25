@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllRoles, createRole } from '../services/roleService.js';
+import { getAllRoles, createRole, getAllPermissions } from '../services/roleService.js';
 import { updateUserRole } from '../services/userService.js';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware.js';
 
@@ -20,6 +20,25 @@ router.get('/roles', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: err.message || 'Error al obtener roles'
+    });
+  }
+});
+
+/**
+ * GET /api/permissions
+ * Returns list of all system permissions from PostgreSQL
+ */
+router.get('/permissions', authenticateToken, async (req, res) => {
+  try {
+    const permissions = await getAllPermissions();
+    res.json({
+      success: true,
+      permissions
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Error al obtener permisos'
     });
   }
 });

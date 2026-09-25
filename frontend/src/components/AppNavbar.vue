@@ -90,7 +90,6 @@
               >
                 <i class="fa-solid fa-users"></i>
                 <span>Usuarios</span>
-                <span class="badge-count light" v-if="usersCount">{{ usersCount }}</span>
               </button>
 
               <button 
@@ -100,7 +99,6 @@
               >
                 <i class="fa-solid fa-user-gear"></i>
                 <span>Roles y Permisos</span>
-                <span class="badge-count light" v-if="rolesCount">{{ rolesCount }}</span>
               </button>
 
               <button 
@@ -148,8 +146,6 @@ const isMobileMenuOpen = ref(false);
 
 const user = computed(() => authStore.user);
 const documentsCount = computed(() => documentStore.documents.length);
-const usersCount = computed(() => userStore.users.length);
-const rolesCount = computed(() => roleStore.roles.length);
 
 const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));

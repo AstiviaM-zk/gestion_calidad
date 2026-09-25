@@ -42,7 +42,7 @@ export async function getAllRoles() {
         if (permsRes.rows) {
           perms = permsRes.rows.map(p => {
             const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-            return { key: k, label: p.description || p.label || k };
+            return { key: k, label: p.name || p.label || p.description || k };
           });
         }
       } catch (pErr) {
@@ -54,6 +54,24 @@ export async function getAllRoles() {
     return roles;
   } catch (err) {
     console.error('Error al obtener roles de PostgreSQL:', err.message);
+    return [];
+  }
+}
+
+/**
+ * Obtiene todos los permisos registrados en PostgreSQL
+ */
+export async function getAllPermissions() {
+  try {
+    const res = await query(
+      `SELECT * FROM qms.permissions ORDER BY id ASC`
+    );
+    return res.rows.map(p => {
+      const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
+      return { key: k, label: p.name || p.label || p.description || k };
+    });
+  } catch (err) {
+    console.error('Error al obtener permisos de PostgreSQL:', err.message);
     return [];
   }
 }
@@ -81,7 +99,7 @@ export async function getRoleByCode(roleCode) {
       );
       const perms = permsRes.rows ? permsRes.rows.map(p => {
         const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-        return { key: k, label: p.description || p.label || k };
+        return { key: k, label: p.name || p.label || p.description || k };
       }) : [];
       return formatRole(roleObj, perms);
     }
