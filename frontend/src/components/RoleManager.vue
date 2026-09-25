@@ -41,11 +41,14 @@
           <span class="perm-title">Alcance de Permisos:</span>
           <div class="perm-tags">
             <span 
-              v-for="perm in role.permissions" 
+              v-for="perm in role.permissions?.slice(0, 9)" 
               :key="perm.key || perm" 
               class="perm-tag"
             >
               <i class="fa-solid fa-check text-emerald"></i> {{ perm.label || perm }}
+            </span>
+            <span v-if="role.permissions?.length > 9" class="perm-tag more-tag" :title="role.permissions.slice(9).map(p => p.label || p).join(', ')">
+              +{{ role.permissions.length - 9 }} permisos
             </span>
           </div>
         </div>
@@ -127,6 +130,7 @@ const newRole = ref({ name: "", description: "", selectedPermissions: [] });
 onMounted(() => {
   if (!props.roles) roleStore.fetchRoles();
   if (!props.users) userStore.fetchUsers();
+  if (roleStore.permissions.length === 0) roleStore.fetchPermissions();
 });
 
 const roleList = computed(() => {
@@ -137,15 +141,7 @@ const userList = computed(() => {
   return props.users || userStore.users;
 });
 
-const availablePermissions = [
-  { key: "templates:crud", label: "CRUD Total de Plantillas" },
-  { key: "versions:manage", label: "Gestión de Versiones" },
-  { key: "evidences:view_all", label: "Visibilidad Total de Evidencias" },
-  { key: "evidences:validate_dept", label: "Validar Evidencias de Área" },
-  { key: "evidences:upload", label: "Subir Formatos / Evidencias" },
-  { key: "users:manage", label: "Gestión de Usuarios" },
-  { key: "audit:logs", label: "Revisión de Logs de Acceso" }
-];
+const availablePermissions = computed(() => roleStore.permissions);
 
 function getRoleIcon(roleKey, roleName) {
   const key = roleKey || roleName || "";
@@ -235,6 +231,7 @@ async function submitCreateRole() {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  height: 320px;
   transition: var(--transition);
 }
 
@@ -294,6 +291,11 @@ async function submitCreateRole() {
   font-size: 12px;
   color: var(--text-muted);
   line-height: 1.4;
+  flex: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 .role-meta {
@@ -308,6 +310,7 @@ async function submitCreateRole() {
   gap: 6px;
   border-top: 1px solid var(--border-light);
   padding-top: 10px;
+  margin-top: auto;
 }
 
 .perm-title {
@@ -334,6 +337,15 @@ async function submitCreateRole() {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+.more-tag {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  border-style: dashed;
+  color: #475569;
+  font-weight: 700;
+  cursor: help;
 }
 
 .modal-overlay {

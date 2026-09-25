@@ -4,6 +4,7 @@ import api from '../services/api';
 export const useRoleStore = defineStore('roles', {
   state: () => ({
     roles: [],
+    permissions: [],
     isLoading: false,
     error: null
   }),
@@ -21,6 +22,17 @@ export const useRoleStore = defineStore('roles', {
         this.error = 'Error cargando roles';
       } finally {
         this.isLoading = false;
+      }
+    },
+
+    async fetchPermissions() {
+      try {
+        const { data } = await api.get('/permissions');
+        if (data.success) {
+          this.permissions = data.permissions;
+        }
+      } catch (err) {
+        console.error('Error cargando permisos:', err);
       }
     },
 
