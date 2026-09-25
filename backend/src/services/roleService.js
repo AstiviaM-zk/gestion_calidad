@@ -42,7 +42,7 @@ export async function getAllRoles() {
         if (permsRes.rows) {
           perms = permsRes.rows.map(p => {
             const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-            return { key: k, label: p.name || p.label || p.description || k };
+            return { id: p.id, key: k, label: p.name || p.label || k, description: p.description || '' };
           });
         }
       } catch (pErr) {
@@ -68,7 +68,7 @@ export async function getAllPermissions() {
     );
     return res.rows.map(p => {
       const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-      return { key: k, label: p.name || p.label || p.description || k, module: p.module || 'Otros' };
+      return { id: p.id, key: k, label: p.name || p.label || k, module: p.module || 'Otros', description: p.description || '' };
     });
   } catch (err) {
     console.error('Error al obtener permisos de PostgreSQL:', err.message);
@@ -99,7 +99,7 @@ export async function getRoleByCode(roleCode) {
       );
       const perms = permsRes.rows ? permsRes.rows.map(p => {
         const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-        return { key: k, label: p.name || p.label || p.description || k };
+        return { id: p.id, key: k, label: p.name || p.label || k, description: p.description || '' };
       }) : [];
       return formatRole(roleObj, perms);
     }
@@ -211,18 +211,28 @@ export async function updateRole(roleCode, roleData) {
       await query(`DELETE FROM qms.role_permissions WHERE id_role = $1`, [roleObj.id]);
       
       for (const perm of roleData.permissions) {
-        const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name || perm.code);
-        if (keyStr) {
-          const permRes = await query(
-            `SELECT id FROM qms.permissions WHERE key = $1 OR code = $1 OR name = $1 LIMIT 1`,
-            [keyStr]
-          );
-          if (permRes.rows.length > 0) {
-            const permId = permRes.rows[0].id;
+        let permId = typeof perm === 'object' ? perm.id : null;
+        if (!permId) {
+          const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name || perm.code);
+          if (keyStr) {
+            const permRes = await query(
+              `SELECT id FROM qms.permissions WHERE key = $1 OR code = $1 OR name = $1 LIMIT 1`,
+              [keyStr]
+            );
+            if (permRes.rows.length > 0) {
+              permId = permRes.rows[0].id;
+            }
+          }
+        }
+        
+        if (permId) {
+          try {
             await query(
               `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2)`,
               [roleObj.id, permId]
             );
+          } catch (insertErr) {
+            console.warn('El permiso ya estaba vinculado o no es válido:', insertErr.message);
           }
         }
       }
