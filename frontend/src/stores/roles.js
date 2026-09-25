@@ -68,6 +68,23 @@ export const useRoleStore = defineStore('roles', {
           message: err.response?.data?.message || 'Error al actualizar el rol'
         };
       }
+    },
+    
+    async deleteRole(roleCode) {
+      try {
+        const { data } = await api.delete(`/roles/${roleCode}`);
+        if (data.success) {
+          await this.fetchRoles();
+          return { success: true, message: data.message };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        console.error('Error eliminando rol:', err);
+        return {
+          success: false,
+          message: err.response?.data?.message || 'Error al eliminar el rol'
+        };
+      }
     }
   }
 });

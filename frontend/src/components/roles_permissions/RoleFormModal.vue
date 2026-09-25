@@ -99,6 +99,10 @@
           </div>
 
           <div class="modal-footer">
+            <button type="button" class="btn btn-danger btn-sm btn-delete" v-if="isEdit && !formData.isSystem && canDelete" @click="handleDeleteRole" :disabled="isSubmitting">
+              <i class="fa-solid fa-trash"></i> Eliminar
+            </button>
+            <div style="flex:1"></div>
             <button type="button" class="btn btn-secondary btn-sm" @click="closeModal">
               Cancelar
             </button>
@@ -116,6 +120,7 @@
 import { ref, computed, watch } from 'vue';
 import { useRoleStore } from '../../stores/roles';
 import { useUserStore } from '../../stores/users';
+import { useAuthStore } from '../../stores/auth';
 
 const props = defineProps({
   show: Boolean,
@@ -125,9 +130,11 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved']);
 const roleStore = useRoleStore();
 const userStore = useUserStore();
+const authStore = useAuthStore();
 
 const isSubmitting = ref(false);
 const isEdit = computed(() => !!props.role);
+const canDelete = computed(() => authStore.hasPermission('roles:delete'));
 
 const selectedUserToAdd = ref(null);
 
@@ -182,9 +189,12 @@ const roleUsers = computed(() => {
 
 const availableUsers = computed(() => {
   if (!formData.value.originalKey) return [];
-  const code = formData.value.originalKey;
-  const name = formData.value.name;
-  return userStore.users.filter(u => u.role !== code && u.role !== name);
+  return userStore.users.filter(u => {
+    // Excluir si ya tiene este rol
+    if (u.role === formData.value.originalKey || u.role === formData.value.name) return false;
+    // Mostrar solo si no tiene rol o es 'guest' (rol no asignado real)
+    return !u.role || u.role.trim() === '' || u.role === 'guest';
+  });
 });
 
 async function addUserToRole() {
@@ -201,7 +211,7 @@ async function addUserToRole() {
 async function removeUserFromRole(u) {
   if(!confirm(`¿Estás seguro de quitar el rol a ${u.name}?`)) return;
   try {
-    await userStore.updateUserRole(u.email, 'operator');
+    await userStore.updateUserRole(u.email, 'guest');
   } catch(e) {
     alert("Error al remover el rol del usuario");
   }
@@ -209,6 +219,37 @@ async function removeUserFromRole(u) {
 
 function closeModal() {
   emit('close');
+}
+
+async function handleDeleteRole() {
+  if (roleUsers.value.length > 0) {
+    alert("Este rol tiene usuarios asociados. No puede ser eliminado.");
+    return;
+  }
+  
+  if (formData.value.isSystem) {
+    alert("No se pueden eliminar roles de sistema.");
+    return;
+  }
+
+  if (!confirm(`¿Estás completamente seguro de eliminar el rol "${formData.value.name}"?\nEsta acción no se puede deshacer.`)) {
+    return;
+  }
+
+  isSubmitting.value = true;
+  try {
+    const res = await roleStore.deleteRole(formData.value.originalKey);
+    if (res.success) {
+      emit('saved');
+      closeModal();
+    } else {
+      alert(res.message || "Error al eliminar el rol");
+    }
+  } catch (err) {
+    console.error("Error eliminando rol:", err);
+  } finally {
+    isSubmitting.value = false;
+  }
 }
 
 async function submitForm() {
@@ -226,7 +267,8 @@ async function submitForm() {
       res = await roleStore.createRole({
         name: formData.value.name,
         description: formData.value.description,
-        permissions: formData.value.selectedPermissions
+        permissions: formData.value.selectedPermissions,
+        is_system: false
       });
     }
     
@@ -528,6 +570,15 @@ async function submitForm() {
   align-items: center;
   justify-content: center;
   padding: 0 12px;
+}
+
+.btn-delete {
+  background: #ef4444;
+  color: white;
+  border: none;
+}
+.btn-delete:hover:not(:disabled) {
+  background: #dc2626;
 }
 
 .modal-footer {

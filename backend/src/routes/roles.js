@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllRoles, createRole, getAllPermissions, updateRole } from '../services/roleService.js';
+import { getAllRoles, createRole, getAllPermissions, updateRole, deleteRole } from '../services/roleService.js';
 import { updateUserRole } from '../services/userService.js';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware.js';
 
@@ -91,6 +91,26 @@ router.put('/roles/:code', authenticateToken, requireRole('admin_sgc'), async (r
     res.status(400).json({
       success: false,
       message: error.message || 'Error al actualizar el rol'
+    });
+  }
+});
+
+/**
+ * DELETE /api/roles/:code
+ * Deletes an existing role if it has no associated users (Exclusivo Administradores)
+ */
+router.delete('/roles/:code', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
+  try {
+    const { code } = req.params;
+    await deleteRole(code);
+    res.json({
+      success: true,
+      message: 'Rol eliminado exitosamente'
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Error al eliminar el rol'
     });
   }
 });
