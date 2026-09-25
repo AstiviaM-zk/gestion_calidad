@@ -68,7 +68,7 @@ export async function getAllPermissions() {
     );
     return res.rows.map(p => {
       const k = p.key || p.code || p.name || p.permission || p.permission_key || String(p.id);
-      return { key: k, label: p.name || p.label || p.description || k };
+      return { key: k, label: p.name || p.label || p.description || k, module: p.module || 'Otros' };
     });
   } catch (err) {
     console.error('Error al obtener permisos de PostgreSQL:', err.message);
@@ -183,4 +183,53 @@ export async function createRole(roleData) {
   }
 
   return formatRole(newRole, createdPerms);
+}
+
+/**
+ * Actualiza un rol existente y sus permisos
+ */
+export async function updateRole(roleCode, roleData) {
+  const roleObj = await getRoleByCode(roleCode);
+  if (!roleObj) {
+    throw new Error('Rol no encontrado');
+  }
+
+  const name = roleObj.isSystem ? roleObj.name : (roleData.name || roleObj.name);
+  const description = roleData.description !== undefined ? roleData.description : roleObj.description;
+
+  try {
+    await query(
+      `UPDATE qms.roles SET name = $1, description = $2 WHERE id = $3`,
+      [name, description, roleObj.id]
+    );
+  } catch (err) {
+    console.error('Error actualizando rol básico:', err.message);
+  }
+
+  if (Array.isArray(roleData.permissions)) {
+    try {
+      await query(`DELETE FROM qms.role_permissions WHERE id_role = $1`, [roleObj.id]);
+      
+      for (const perm of roleData.permissions) {
+        const keyStr = typeof perm === 'string' ? perm : (perm.key || perm.name || perm.code);
+        if (keyStr) {
+          const permRes = await query(
+            `SELECT id FROM qms.permissions WHERE key = $1 OR code = $1 OR name = $1 LIMIT 1`,
+            [keyStr]
+          );
+          if (permRes.rows.length > 0) {
+            const permId = permRes.rows[0].id;
+            await query(
+              `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2)`,
+              [roleObj.id, permId]
+            );
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error vinculando permisos actualizados:', e.message);
+    }
+  }
+
+  return await getRoleByCode(String(roleObj.id));
 }

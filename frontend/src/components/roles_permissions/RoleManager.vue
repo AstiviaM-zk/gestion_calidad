@@ -5,7 +5,7 @@
         <h3 class="section-title"><i class="fa-solid fa-user-gear"></i> Roles y Matriz de Permisos QMS</h3>
         <p class="section-subtitle">Administra los roles por defecto (admin_sgc, leader, operator, auditor) y sus perfiles de permisos</p>
       </div>
-      <button class="btn btn-primary btn-sm" @click="showCreateModal = true">
+      <button class="btn btn-primary btn-sm" @click="openCreateModal">
         <i class="fa-solid fa-shield-plus"></i> Crear Nuevo Rol
       </button>
     </div>
@@ -15,6 +15,7 @@
         v-for="role in roleList" 
         :key="role.role || role.name" 
         :class="['role-card', 'shadow-card', { 'system-role': role.isSystem }]"
+        @click="openEditModal(role)"
       >
         <div class="role-header">
           <div class="role-title-box">
@@ -60,58 +61,11 @@
       </div>
     </div>
 
-    <div v-if="showCreateModal" class="modal-overlay" @click.self="showCreateModal = false">
-      <div class="modal-card glass-card shadow-lg">
-        <div class="modal-header">
-          <h3 class="modal-title"><i class="fa-solid fa-shield-plus"></i> Crear Nuevo Rol de Calidad</h3>
-          <button class="icon-btn" @click="showCreateModal = false">
-            <i class="fa-solid fa-xmark"></i>
-          </button>
-        </div>
-
-        <form @submit.prevent="submitCreateRole" class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Nombre del Rol *</label>
-            <input 
-              type="text" 
-              v-model="newRole.name" 
-              placeholder="ej: Gestor de Calidad" 
-              class="form-input" 
-              required
-            >
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Descripción</label>
-            <textarea 
-              v-model="newRole.description" 
-              placeholder="Describe las responsabilidades de este rol..." 
-              class="form-textarea" 
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">Matriz de Permisos</label>
-            <div class="checkbox-grid">
-              <label v-for="opt in availablePermissions" :key="opt.key" class="checkbox-label">
-                <input type="checkbox" :value="opt" v-model="newRole.selectedPermissions">
-                <span>{{ opt.label }}</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary btn-sm" @click="showCreateModal = false">
-              Cancelar
-            </button>
-            <button type="submit" class="btn btn-primary btn-sm" :disabled="isSubmitting">
-              <i class="fa-solid fa-floppy-disk"></i> Guardar Rol
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <RoleFormModal 
+      :show="showModal" 
+      :role="selectedRole" 
+      @close="showModal = false" 
+    />
   </div>
 </template>
 
@@ -119,6 +73,7 @@
 import { ref, computed, onMounted } from "vue";
 import { useRoleStore } from "../../stores/roles";
 import { useUserStore } from "../../stores/users";
+import RoleFormModal from "./RoleFormModal.vue";
 
 const props = defineProps({
   roles: { type: Array, default: null },
@@ -128,14 +83,13 @@ const props = defineProps({
 const roleStore = useRoleStore();
 const userStore = useUserStore();
 
-const showCreateModal = ref(false);
-const isSubmitting = ref(false);
-const newRole = ref({ name: "", description: "", selectedPermissions: [] });
+const showModal = ref(false);
+const selectedRole = ref(null);
 
 onMounted(() => {
   if (!props.roles) roleStore.fetchRoles();
   if (!props.users) userStore.fetchUsers();
-  if (roleStore.permissions.length === 0) roleStore.fetchPermissions();
+  if ((roleStore.permissions || []).length === 0) roleStore.fetchPermissions();
 });
 
 const roleList = computed(() => {
@@ -145,8 +99,6 @@ const roleList = computed(() => {
 const userList = computed(() => {
   return props.users || userStore.users;
 });
-
-const availablePermissions = computed(() => roleStore.permissions);
 
 function getRoleIcon(roleKey, roleName) {
   const key = roleKey || roleName || "";
@@ -162,26 +114,14 @@ function getUserCountForRole(roleObj) {
   return userList.value.filter(u => u.role === targetKey || u.role === roleObj.name).length;
 }
 
-async function submitCreateRole() {
-  if (!newRole.value.name) return;
-  isSubmitting.value = true;
-  try {
-    const res = await roleStore.createRole({
-      name: newRole.value.name,
-      description: newRole.value.description,
-      permissions: newRole.value.selectedPermissions
-    });
-    if (res.success) {
-      showCreateModal.value = false;
-      newRole.value = { name: "", description: "", selectedPermissions: [] };
-    } else {
-      alert(res.message || "Error al crear el rol");
-    }
-  } catch (err) {
-    console.error("Error guardando rol:", err);
-  } finally {
-    isSubmitting.value = false;
-  }
+function openCreateModal() {
+  selectedRole.value = null;
+  showModal.value = true;
+}
+
+function openEditModal(role) {
+  selectedRole.value = role;
+  showModal.value = true;
 }
 </script>
 
@@ -237,12 +177,14 @@ async function submitCreateRole() {
   flex-direction: column;
   gap: 12px;
   height: 320px;
-  transition: var(--transition);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  cursor: pointer;
 }
 
 .role-card:hover {
-  border-color: var(--border-glow);
-  box-shadow: var(--shadow-card);
+  border-color: var(--primary-light);
+  box-shadow: 0 10px 25px -5px rgba(30, 58, 138, 0.12), 0 8px 10px -6px rgba(30, 58, 138, 0.1);
+  transform: translateY(-4px);
 }
 
 .role-header {
@@ -428,6 +370,34 @@ async function submitCreateRole() {
 .form-textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.permissions-module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: 350px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--bg-body);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
+}
+
+.perm-module-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.perm-module-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-light);
+  padding-bottom: 4px;
 }
 
 .checkbox-grid {
