@@ -3,111 +3,89 @@
     <div class="panel-section glass-card shadow-sm">
       <div class="section-header">
         <div>
-          <h3 class="section-title"><i class="fa-solid fa-building"></i> Departamentos (Catálogo)</h3>
+          <div class="title-with-badge">
+            <h3 class="section-title"><i class="fa-solid fa-building"></i> Departamentos (Catálogo)</h3>
+            <span class="dept-count-badge">
+              <i class="fa-solid fa-layer-group"></i> {{ filteredDepartments.length }} {{ filteredDepartments.length === 1 ? 'departamento' : 'departamentos' }}
+            </span>
+          </div>
           <p class="section-subtitle">Administra la lista de departamentos de la organización</p>
         </div>
-        <button v-if="canManage" class="btn btn-primary btn-sm" @click="openCreateModal">
-          <i class="fa-solid fa-plus"></i> Nuevo Departamento
-        </button>
+        
+        <div class="header-actions">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Buscar por título o código..." 
+              class="search-input"
+            />
+            <button 
+              v-if="searchQuery" 
+              type="button" 
+              class="clear-search-btn" 
+              @click="searchQuery = ''"
+              title="Limpiar búsqueda"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          
+          <button v-if="canManage" class="btn btn-primary btn-sm" @click="openCreateModal">
+            <i class="fa-solid fa-plus"></i> Nuevo Departamento
+          </button>
+        </div>
       </div>
 
-      <div class="table-responsive">
-        <table class="qms-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Departamento</th>
-              <th>Código / Clave</th>
-              <th>Estado</th>
-              <th v-if="canManage">Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="dept in departments" :key="dept.id" class="table-row">
-              <td>{{ dept.id }}</td>
-              <td>
-                <div class="font-bold flex items-center gap-2">
-                  <i v-if="dept.icon" :class="dept.icon" style="color: #64748b; width: 16px; text-align: center;"></i>
-                  {{ dept.title }}
-                </div>
-                <div v-if="dept.description" class="text-xs text-subtle mt-1" style="color: #64748b;">{{ dept.description }}</div>
-              </td>
-              <td>
-                <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
-                <span class="text-subtle text-xs" v-else>N/A</span>
-              </td>
-              <td>
-                <span v-if="dept.status" class="badge-active">Activo</span>
-                <span v-else class="badge-inactive">Inactivo</span>
-              </td>
-              <td v-if="canManage">
-                <div class="action-buttons">
-                  <button type="button" class="icon-btn edit-btn" @click="openEditModal(dept)" title="Editar">
-                    <i class="fa-solid fa-pen"></i>
-                  </button>
-                  <button type="button" class="icon-btn delete-btn" @click="confirmDelete(dept)" title="Eliminar">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
-                </div>
-              </td>
-            </tr>
-            <tr v-if="departments.length === 0">
-              <td :colspan="canManage ? 4 : 3" class="text-center empty-state">
-                <i class="fa-solid fa-building-circle-xmark empty-icon"></i>
-                <p>No hay departamentos registrados.</p>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="departments-grid" v-if="filteredDepartments.length > 0">
+        <div v-for="dept in filteredDepartments" :key="dept.id" class="dept-card" @click="openDetailsModal(dept)">
+          <div class="dept-card-header">
+            <div class="dept-icon-wrapper" :class="{ 'inactive': !dept.status }">
+              <i :class="dept.icon || 'fa-solid fa-building'"></i>
+            </div>
+            <div class="dept-actions" v-if="canManage">
+              <button type="button" class="icon-btn edit-btn" @click.stop="openEditModal(dept)" title="Editar">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button type="button" class="icon-btn delete-btn" @click.stop="confirmDelete(dept)" title="Eliminar">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="dept-card-body">
+            <h4 class="dept-title">{{ dept.title }}</h4>
+            <p class="dept-description" v-if="dept.description">{{ dept.description }}</p>
+            <p class="dept-description empty-desc" v-else>Sin descripción</p>
+          </div>
+          
+          <div class="dept-card-footer">
+            <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
+            <span v-else></span>
+            <span v-if="dept.status" class="badge-active">Activo</span>
+            <span v-else class="badge-inactive">Inactivo</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="empty-state">
+        <i class="fa-solid fa-building-circle-xmark empty-icon" v-if="!searchQuery"></i>
+        <i class="fa-solid fa-magnifying-glass empty-icon" v-else></i>
+        <p v-if="!searchQuery">No hay departamentos registrados.</p>
+        <p v-else>No se encontraron departamentos con la búsqueda "{{ searchQuery }}".</p>
       </div>
     </div>
 
-    <!-- Modal Formulario -->
-    <Teleport to="body">
-      <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
-        <div class="modal-card shadow-lg glass-card">
-          <div class="modal-header">
-            <h4 class="modal-title">
-              <i :class="isEditing ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-plus'"></i> 
-              {{ isEditing ? 'Editar Departamento' : 'Nuevo Departamento' }}
-            </h4>
-            <button type="button" class="icon-btn" @click="closeModal"><i class="fa-solid fa-xmark"></i></button>
-          </div>
-          <form @submit.prevent="saveDepartment">
-            <div class="modal-body">
-              <div class="edit-form-group">
-                <label class="edit-label">Título del Departamento *</label>
-                <input type="text" v-model="form.title" class="edit-input" placeholder="Ej. Recursos Humanos" required>
-              </div>
-              <div class="edit-form-group">
-                <label class="edit-label">Código / Clave (Opcional)</label>
-                <input type="text" v-model="form.code" class="edit-input" placeholder="Ej. RRHH">
-              </div>
-              <div class="edit-form-group">
-                <label class="edit-label">Descripción (Opcional)</label>
-                <textarea v-model="form.description" class="edit-input" placeholder="Breve descripción del departamento..." rows="2"></textarea>
-              </div>
-              <div class="edit-form-group">
-                <label class="edit-label">Icono (Opcional)</label>
-                <input type="text" v-model="form.icon" class="edit-input" placeholder="Ej. fa-solid fa-users">
-              </div>
-              <div class="edit-form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
-                <input type="checkbox" id="dept-status" v-model="form.status">
-                <label for="dept-status" class="edit-label" style="margin-bottom: 0;">Departamento Activo</label>
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary btn-sm" @click="closeModal">Cancelar</button>
-              <button type="submit" class="btn btn-primary btn-sm" :disabled="isSaving">
-                <i v-if="isSaving" class="fa-solid fa-circle-notch fa-spin"></i>
-                <i v-else class="fa-solid fa-save"></i> 
-                {{ isEditing ? 'Guardar Cambios' : 'Crear Departamento' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Teleport>
+    <!-- Modal de Detalles -->
+    <DepartmentDetailsModal 
+      v-model="showDetailsModal" 
+      :department="selectedDept" 
+      @edit="openEditModal" 
+    />
+
+    <!-- Modal Formulario (Crear/Editar) -->
+    <DepartmentModal v-model="showModal" :initialData="form" />
   </div>
 </template>
 
@@ -116,6 +94,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '../../stores/users';
 import { useAuthStore } from '../../stores/auth';
 import { showToast } from '../../utils/toast';
+import DepartmentModal from './DepartmentModal.vue';
+import DepartmentDetailsModal from './DepartmentDetailsModal.vue';
 
 const userStore = useUserStore();
 const authStore = useAuthStore();
@@ -124,9 +104,19 @@ const canManage = computed(() => authStore.hasPermission('departments:update') |
 const departments = computed(() => userStore.departments);
 
 const showModal = ref(false);
-const isEditing = ref(false);
-const isSaving = ref(false);
+const showDetailsModal = ref(false);
+const selectedDept = ref(null);
 const form = ref({ id: null, title: '', code: '', description: '', icon: '', status: true });
+const searchQuery = ref('');
+
+const filteredDepartments = computed(() => {
+  if (!searchQuery.value) return departments.value;
+  const lowerQ = searchQuery.value.toLowerCase();
+  return departments.value.filter(d => 
+    (d.title && d.title.toLowerCase().includes(lowerQ)) || 
+    (d.code && d.code.toLowerCase().includes(lowerQ))
+  );
+});
 
 onMounted(() => {
   if (departments.value.length === 0) {
@@ -136,50 +126,17 @@ onMounted(() => {
 
 function openCreateModal() {
   form.value = { id: null, title: '', code: '', description: '', icon: '', status: true };
-  isEditing.value = false;
   showModal.value = true;
+}
+
+function openDetailsModal(dept) {
+  selectedDept.value = dept;
+  showDetailsModal.value = true;
 }
 
 function openEditModal(dept) {
   form.value = { id: dept.id, title: dept.title, code: dept.code || '', description: dept.description || '', icon: dept.icon || '', status: dept.status !== false };
-  isEditing.value = true;
   showModal.value = true;
-}
-
-function closeModal() {
-  showModal.value = false;
-  form.value = { id: null, title: '', code: '', description: '', icon: '', status: true };
-}
-
-async function saveDepartment() {
-  if (!form.value.title.trim()) {
-    showToast.error('El título es obligatorio');
-    return;
-  }
-
-  isSaving.value = true;
-  let res;
-  const payload = { 
-    title: form.value.title, 
-    code: form.value.code, 
-    description: form.value.description, 
-    icon: form.value.icon, 
-    status: form.value.status 
-  };
-  
-  if (isEditing.value) {
-    res = await userStore.updateDepartment(form.value.id, payload);
-  } else {
-    res = await userStore.createDepartment(payload);
-  }
-  isSaving.value = false;
-
-  if (res.success) {
-    showToast.success(isEditing.value ? 'Departamento actualizado' : 'Departamento creado');
-    closeModal();
-  } else {
-    showToast.error(res.message || 'Error al guardar el departamento');
-  }
 }
 
 async function confirmDelete(dept) {
@@ -195,6 +152,87 @@ async function confirmDelete(dept) {
 </script>
 
 <style scoped>
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.dept-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 58, 138, 0.08);
+  color: var(--primary, #1e3a8a);
+  border: 1px solid rgba(30, 58, 138, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 240px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 34px;
+  font-size: 13px;
+  border: 1px solid var(--border-light, #cbd5e1);
+  border-radius: 10px;
+  background: #ffffff;
+  color: var(--text-main, #1e293b);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--primary, #1e3a8a);
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.clear-search-btn:hover {
+  color: var(--primary, #1e3a8a);
+  background: #f1f5f9;
+}
+
 .department-manager-container {
   height: 100%;
   display: flex;
@@ -212,8 +250,8 @@ async function confirmDelete(dept) {
 }
 
 .badge-active {
-  background: #dcfce7;
-  color: #166534;
+  background: #75ba21;
+  color: #ffffff;
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 11px;
@@ -235,84 +273,113 @@ async function confirmDelete(dept) {
   align-items: center;
 }
 
-.edit-btn { color: #3b82f6; }
-.edit-btn:hover { background: #eff6ff; color: #2563eb; }
+.edit-btn { color: var(--primary, #1e3a8a); }
+.edit-btn:hover { background: rgba(30, 58, 138, 0.08); color: #0f172a; }
 
 .delete-btn { color: #ef4444; }
 .delete-btn:hover { background: #fef2f2; color: #dc2626; }
 
-.modal-backdrop {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+.departments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 16px 0;
+}
+
+.dept-card {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid var(--border-light, #e2e8f0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+  cursor: pointer;
+}
+
+.dept-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: #cbd5e1;
+}
+
+.dept-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.dept-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(30, 58, 138, 0.08);
+  color: var(--primary, #1e3a8a);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 16px;
+  font-size: 20px;
 }
 
-.modal-card {
-  width: 100%;
-  max-width: 450px;
-  background: #ffffff;
-  border-radius: var(--radius-xl, 16px);
-  overflow: hidden;
+.dept-icon-wrapper.inactive {
+  background: #f1f5f9;
+  color: #94a3b8;
 }
 
-.modal-header {
-  padding: 16px 20px;
+.dept-actions {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border-light, #e2e8f0);
-}
-
-.modal-title {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text-main, #1e293b);
-  margin: 0;
-  display: flex;
-  align-items: center;
   gap: 8px;
 }
 
-.modal-body {
-  padding: 20px;
-}
-
-.edit-form-group {
+.dept-card-body {
+  flex-grow: 1;
   margin-bottom: 16px;
 }
-.edit-label {
-  display: block;
-  font-size: 13px;
+
+.dept-title {
+  font-size: 16px;
   font-weight: 700;
-  color: #475569;
-  margin-bottom: 6px;
-}
-.edit-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-.edit-input:focus {
-  border-color: #3b82f6;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  color: #1e293b;
+  margin: 0 0 8px 0;
 }
 
-.modal-footer {
-  padding: 14px 20px;
-  background: #f8fafc;
-  border-top: 1px solid var(--border-light, #e2e8f0);
+.dept-description {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.empty-desc {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.dept-card-footer {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.empty-state {
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+
+.empty-icon {
+  font-size: 48px;
+  color: #cbd5e1;
+  margin-bottom: 16px;
 }
 </style>
