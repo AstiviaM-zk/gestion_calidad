@@ -16,7 +16,12 @@
               </div>
             </div>
           </div>
-          <button type="button" class="icon-btn" @click="closeModal"><i class="fa-solid fa-xmark"></i></button>
+          <div class="header-actions">
+            <button v-if="canManage && department?.status === true" type="button" class="icon-btn edit-btn" @click="openEdit" title="Editar Departamento">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button type="button" class="icon-btn" @click="closeModal" title="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+          </div>
         </div>
         
         <div class="modal-body">
@@ -27,14 +32,32 @@
             <p>Este departamento no tiene descripción.</p>
           </div>
 
-          <div class="users-section">
+          <div class="tabs-container">
+            <button 
+              class="tab-btn" 
+              :class="{ active: activeTab === 'usuarios' }" 
+              @click="activeTab = 'usuarios'"
+            >
+              <i class="fa-solid fa-users"></i> Usuarios
+            </button>
+            <button 
+              class="tab-btn" 
+              :class="{ active: activeTab === 'documentos' }" 
+              @click="activeTab = 'documentos'"
+            >
+              <i class="fa-solid fa-file-lines"></i> Documentos
+            </button>
+          </div>
+
+          <!-- TAB: USUARIOS -->
+          <div v-show="activeTab === 'usuarios'" class="users-section">
             <div class="users-section-header">
               <h5 class="section-subtitle">
                 <i class="fa-solid fa-users"></i> 
-                {{ isAddingUsers ? 'Usuarios disponibles (Sin asignar)' : `Usuarios en este departamento (${deptUsers.length})` }}
+                {{ isAddingUsers ? 'Usuarios disponibles (Sin asignar)' : `Miembros del departamento (${deptUsers.length})` }}
               </h5>
               <button 
-                v-if="canManage" 
+                v-if="canManage && department?.status === true" 
                 type="button" 
                 class="btn btn-sm btn-outline-primary"
                 @click="isAddingUsers = !isAddingUsers"
@@ -56,7 +79,7 @@
                   <div style="display: flex; gap: 8px; align-items: center;">
                     <span class="role-badge" :title="user.role">{{ getRoleLabel(user.role) }}</span>
                     <button 
-                      v-if="canManage" 
+                      v-if="canManage && department?.status === true" 
                       type="button" 
                       class="icon-btn text-danger" 
                       @click="removeUser(user)" 
@@ -97,16 +120,36 @@
               </div>
             </div>
           </div>
+
+          <!-- TAB: DOCUMENTOS -->
+          <div v-show="activeTab === 'documentos'" class="documents-section">
+            <div class="empty-state-tab">
+              <i class="fa-solid fa-folder-open empty-tab-icon"></i>
+              <p>Los documentos asociados a este departamento aparecerán aquí.</p>
+              <span class="text-muted" style="font-size: 12px;">(Módulo en construcción)</span>
+            </div>
+          </div>
         </div>
         
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary btn-sm" @click="closeModal">Cerrar</button>
-          <button v-if="canManage" type="button" class="btn btn-primary btn-sm" @click="openEdit">
-            <i class="fa-solid fa-pen"></i> Editar Departamento
+
+          <button v-if="canManage && department?.status === false" type="button" class="btn btn-success btn-sm text-white" @click="reactivateDept" style="background-color: #75ba21; border-color: #75ba21;">
+            <i class="fa-solid fa-check"></i> Reactivar Departamento
           </button>
         </div>
       </div>
     </div>
+
+    <ConfirmModal 
+      v-model="showConfirmModal"
+      :title="confirmTitle"
+      :message="confirmMessage"
+      :type="confirmType"
+      :confirmText="confirmBtnText"
+      :isLoading="isConfirming"
+      @confirm="onConfirm"
+    />
   </Teleport>
 </template>
 
@@ -115,6 +158,7 @@ import { ref, computed } from 'vue';
 import { useUserStore } from '../../stores/users';
 import { useAuthStore } from '../../stores/auth';
 import { showToast } from '../../utils/toast';
+import ConfirmModal from '../ConfirmModal.vue';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -128,6 +172,16 @@ const authStore = useAuthStore();
 
 const canManage = computed(() => authStore.hasPermission('departments:update') || authStore.hasPermission('departments:create') || authStore.user?.role === 'admin_sgc');
 const isAddingUsers = ref(false);
+const activeTab = ref('usuarios');
+
+const showConfirmModal = ref(false);
+const confirmTitle = ref('');
+const confirmMessage = ref('');
+const confirmType = ref('danger');
+const confirmBtnText = ref('Confirmar');
+const isConfirming = ref(false);
+let pendingAction = null;
+let pendingUser = null;
 
 // Ensure users are loaded
 if (userStore.users.length === 0) {
@@ -157,14 +211,45 @@ async function addUser(user) {
   }
 }
 
-async function removeUser(user) {
-  if (!confirm(`¿Quitar a ${user.name} de este departamento?`)) return;
-  const res = await userStore.updateUser(user.id, { departmentId: 'null' });
-  if (res.success) {
-    showToast.success(`${user.name} removido del departamento`);
-  } else {
-    showToast.error(res.message || 'Error al remover usuario');
+function removeUser(user) {
+  pendingAction = 'remove_user';
+  pendingUser = user;
+  confirmTitle.value = 'Quitar Usuario';
+  confirmMessage.value = `¿Estás seguro de quitar a ${user.name} de este departamento?`;
+  confirmType.value = 'danger';
+  confirmBtnText.value = 'Quitar';
+  showConfirmModal.value = true;
+}
+
+function reactivateDept() {
+  pendingAction = 'reactivate_dept';
+  confirmTitle.value = 'Reactivar Departamento';
+  confirmMessage.value = `¿Estás seguro de reactivar el departamento "${props.department.title}"?`;
+  confirmType.value = 'info';
+  confirmBtnText.value = 'Reactivar';
+  showConfirmModal.value = true;
+}
+
+async function onConfirm() {
+  isConfirming.value = true;
+  if (pendingAction === 'remove_user') {
+    const res = await userStore.updateUser(pendingUser.id, { departmentId: 'null' });
+    if (res.success) {
+      showToast.success(`${pendingUser.name} removido del departamento`);
+    } else {
+      showToast.error(res.message || 'Error al remover usuario');
+    }
+  } else if (pendingAction === 'reactivate_dept') {
+    const res = await userStore.updateDepartment(props.department.id, { ...props.department, status: true });
+    if (res.success) {
+      showToast.success('Departamento reactivado exitosamente');
+      closeModal();
+    } else {
+      showToast.error(res.message || 'Error al reactivar el departamento');
+    }
   }
+  isConfirming.value = false;
+  showConfirmModal.value = false;
 }
 
 function openEdit() {
@@ -246,6 +331,20 @@ function getRoleLabel(role) {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-btn { 
+  color: var(--primary, #1e3a8a); 
+}
+.edit-btn:hover { 
+  background: rgba(30, 58, 138, 0.08); 
+  color: #0f172a; 
 }
 
 .modal-title {
@@ -347,6 +446,57 @@ function getRoleLabel(role) {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.tabs-container {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border-light, #e2e8f0);
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: var(--primary, #1e3a8a);
+}
+
+.tab-btn.active {
+  color: var(--primary, #1e3a8a);
+  border-bottom-color: var(--primary, #1e3a8a);
+}
+
+.empty-state-tab {
+  padding: 40px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px dashed #cbd5e1;
+  text-align: center;
+}
+
+.empty-tab-icon {
+  font-size: 32px;
+  color: #cbd5e1;
+  margin-bottom: 12px;
 }
 
 .user-item {

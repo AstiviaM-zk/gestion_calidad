@@ -44,7 +44,7 @@
             <div class="dept-icon-wrapper" :class="{ 'inactive': !dept.status }">
               <i :class="dept.icon || 'fa-solid fa-building'"></i>
             </div>
-            <div class="dept-actions" v-if="canManage">
+            <div class="dept-actions" v-if="canManage && dept.status === true">
               <button type="button" class="icon-btn edit-btn" @click.stop="openEditModal(dept)" title="Editar">
                 <i class="fa-solid fa-pen"></i>
               </button>
@@ -63,7 +63,7 @@
           <div class="dept-card-footer">
             <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
             <span v-else></span>
-            <span v-if="dept.status" class="badge-active">Activo</span>
+            <span v-if="dept.status === true" class="badge-active">Activo</span>
             <span v-else class="badge-inactive">Inactivo</span>
           </div>
         </div>

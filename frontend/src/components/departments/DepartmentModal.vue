@@ -39,10 +39,6 @@
                 </button>
               </div>
             </div>
-            <div class="edit-form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 12px;" v-if="isEditing">
-              <input type="checkbox" id="dept-status" v-model="form.status">
-              <label for="dept-status" class="edit-label" style="margin-bottom: 0;">Departamento Activo</label>
-            </div>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary btn-sm" @click="closeModal">Cancelar</button>
