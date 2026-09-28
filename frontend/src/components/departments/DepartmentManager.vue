@@ -39,7 +39,7 @@
       </div>
 
       <div class="departments-grid" v-if="filteredDepartments.length > 0">
-        <div v-for="dept in filteredDepartments" :key="dept.id" class="dept-card" @click="openDetailsModal(dept)">
+        <div v-for="dept in filteredDepartments" :key="dept.id" class="dept-card" :class="{ 'inactive-card': !dept.status }" @click="openDetailsModal(dept)">
           <div class="dept-card-header">
             <div class="dept-icon-wrapper" :class="{ 'inactive': !dept.status }">
               <i :class="dept.icon || 'fa-solid fa-building'"></i>
@@ -86,6 +86,17 @@
 
     <!-- Modal Formulario (Crear/Editar) -->
     <DepartmentModal v-model="showModal" :initialData="form" />
+
+    <!-- Confirm Modal for Deletion -->
+    <ConfirmModal 
+      v-model="showConfirmModal"
+      title="Inhabilitar Departamento"
+      :message="confirmMessage"
+      type="danger"
+      confirmText="Inhabilitar"
+      :isLoading="isDeleting"
+      @confirm="proceedDelete"
+    />
   </div>
 </template>
 
@@ -96,6 +107,7 @@ import { useAuthStore } from '../../stores/auth';
 import { showToast } from '../../utils/toast';
 import DepartmentModal from './DepartmentModal.vue';
 import DepartmentDetailsModal from './DepartmentDetailsModal.vue';
+import ConfirmModal from '../ConfirmModal.vue';
 
 const userStore = useUserStore();
 const authStore = useAuthStore();
@@ -105,7 +117,11 @@ const departments = computed(() => userStore.departments);
 
 const showModal = ref(false);
 const showDetailsModal = ref(false);
+const showConfirmModal = ref(false);
 const selectedDept = ref(null);
+const deptToDelete = ref(null);
+const isDeleting = ref(false);
+const confirmMessage = ref('');
 const form = ref({ id: null, title: '', code: '', description: '', icon: '', status: true });
 const searchQuery = ref('');
 
@@ -139,14 +155,34 @@ function openEditModal(dept) {
   showModal.value = true;
 }
 
-async function confirmDelete(dept) {
-  if (!confirm(`¿Estás seguro de eliminar el departamento "${dept.title}"? Esta acción no se puede deshacer y fallará si hay usuarios asignados a él.`)) return;
+function confirmDelete(dept) {
+  deptToDelete.value = dept;
+  confirmMessage.value = `¿Estás seguro de inhabilitar el departamento "${dept.title}"?`;
+  showConfirmModal.value = true;
+}
 
-  const res = await userStore.deleteDepartment(dept.id);
+async function proceedDelete() {
+  if (!deptToDelete.value) return;
+
+  // Frontend Validation: check if there are users in this department
+  const usersInDept = userStore.users.filter(u => u.departmentId === deptToDelete.value.id);
+  if (usersInDept.length > 0) {
+    showToast.error(`No es posible inhabilitar departamentos que aún tienen usuarios asociados (${usersInDept.length} usuarios).`);
+    showConfirmModal.value = false;
+    return;
+  }
+
+  isDeleting.value = true;
+  const res = await userStore.deleteDepartment(deptToDelete.value.id);
+  isDeleting.value = false;
+
   if (res.success) {
-    showToast.success('Departamento eliminado exitosamente');
+    showToast.success('Departamento inhabilitado exitosamente');
+    showConfirmModal.value = false;
   } else {
-    showToast.error(res.message || 'Error al eliminar el departamento');
+    // This catches backend validation too
+    showToast.error(res.message || 'Error al inhabilitar el departamento');
+    showConfirmModal.value = false;
   }
 }
 </script>
@@ -301,6 +337,16 @@ async function confirmDelete(dept) {
   transform: translateY(-2px);
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   border-color: #cbd5e1;
+}
+
+.inactive-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  opacity: 0.8;
+}
+
+.inactive-card .dept-title {
+  color: #64748b;
 }
 
 .dept-card-header {

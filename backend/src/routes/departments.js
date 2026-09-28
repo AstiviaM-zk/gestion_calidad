@@ -83,13 +83,13 @@ router.delete('/:id', authenticateToken, requirePermission('departments:delete')
       });
     }
 
-    const resDb = await query(`DELETE FROM qms.departments WHERE id = $1 RETURNING id`, [id]);
+    const resDb = await query(`UPDATE qms.departments SET status = false WHERE id = $1 RETURNING id`, [id]);
     
     if (resDb.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Departamento no encontrado' });
     }
 
-    return res.json({ success: true, message: 'Departamento eliminado correctamente' });
+    return res.json({ success: true, message: 'Departamento inhabilitado correctamente' });
   } catch (error) {
     console.error('Error al eliminar departamento:', error.message);
     return res.status(500).json({ success: false, message: 'Error al eliminar departamento' });
