@@ -19,6 +19,24 @@ router.get('/', authenticateToken, requirePermission('departments:read'), async 
 });
 
 /**
+ * GET /api/departments/:id/categories
+ * Obtener categorías de un departamento
+ */
+router.get('/:id/categories', authenticateToken, requirePermission('documents:read'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const resDb = await query(
+      `SELECT id, name, code, is_restricted, is_base FROM qms.categories WHERE department_id = $1 ORDER BY id ASC`, 
+      [id]
+    );
+    return res.json({ success: true, categories: resDb.rows });
+  } catch (error) {
+    console.error('Error al obtener categorías:', error.message);
+    return res.status(500).json({ success: false, message: 'Error al obtener categorías' });
+  }
+});
+
+/**
  * POST /api/departments
  * Crear departamento
  */

@@ -186,6 +186,13 @@ async function proceedDelete() {
   flex-direction: column;
 }
 
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* needed for flex children to shrink */
+}
+
 .title-with-badge {
   display: flex;
   align-items: center;
@@ -248,9 +255,17 @@ async function proceedDelete() {
 
 .table-responsive {
   width: 100%;
+  flex: 1;
+  overflow-y: auto;
   overflow-x: auto;
   border-radius: 8px;
   border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.qms-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .qms-table {
