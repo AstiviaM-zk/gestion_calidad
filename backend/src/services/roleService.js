@@ -13,7 +13,7 @@ function formatRole(row, perms = []) {
     role: row.role || row.name || row.code || '',
     name: row.name || row.role || '',
     description: row.description || '',
-    isSystem: row.isSystem !== undefined ? row.isSystem : (row.is_system !== undefined ? row.is_system : false),
+    isSystem: row.isSystem !== undefined ? row.isSystem : (row.system_role !== undefined ? row.system_role : false),
     permissions: perms
   };
 }
@@ -34,8 +34,8 @@ export async function getAllRoles() {
       try {
         const permsRes = await query(
           `SELECT p.* 
-           FROM qms.role_permissions rp
-           JOIN qms.permissions p ON rp.id_permission = p.id
+           FROM qms.roles_permissions rp
+           JOIN qms.permissions p ON rp.id_perm = p.id
            WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
           [roleObj.id]
         );
@@ -92,8 +92,8 @@ export async function getRoleByCode(roleCode) {
       const roleObj = res.rows[0];
       const permsRes = await query(
         `SELECT p.* 
-         FROM qms.role_permissions rp
-         JOIN qms.permissions p ON rp.id_permission = p.id
+         FROM qms.roles_permissions rp
+         JOIN qms.permissions p ON rp.id_perm = p.id
          WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
         [roleObj.id]
       );
@@ -141,17 +141,17 @@ export async function createRole(roleData) {
   let insertRes;
   try {
     insertRes = await query(
-      `INSERT INTO qms.roles (name, description, is_system)
+      `INSERT INTO qms.roles (name, description, system_role)
        VALUES ($1, $2, $3)
        RETURNING *`,
-      [roleName, description, roleData.is_system || false]
+      [roleName, description, roleData.isSystem !== undefined ? roleData.isSystem : false]
     );
   } catch (err) {
     insertRes = await query(
-      `INSERT INTO qms.roles (name, is_system)
+      `INSERT INTO qms.roles (name, system_role)
        VALUES ($1, $2)
        RETURNING *`,
-      [roleName, roleData.is_system || false]
+      [roleName, roleData.isSystem !== undefined ? roleData.isSystem : false]
     );
   }
 
@@ -181,7 +181,7 @@ export async function createRole(roleData) {
       if (permId) {
         try {
           await query(
-            `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2)`,
+            `INSERT INTO qms.roles_permissions (id_role, id_perm) VALUES ($1, $2)`,
             [newRole.id, permId]
           );
           createdPerms.push({ key: perm.key || perm, label: perm.label || perm });
@@ -218,7 +218,7 @@ export async function updateRole(roleCode, roleData) {
 
   if (Array.isArray(roleData.permissions)) {
     try {
-      await query(`DELETE FROM qms.role_permissions WHERE id_role = $1`, [roleObj.id]);
+      await query(`DELETE FROM qms.roles_permissions WHERE id_role = $1`, [roleObj.id]);
       
       for (const perm of roleData.permissions) {
         let permId = typeof perm === 'object' ? perm.id : null;
@@ -238,7 +238,7 @@ export async function updateRole(roleCode, roleData) {
         if (permId) {
           try {
             await query(
-              `INSERT INTO qms.role_permissions (id_role, id_permission) VALUES ($1, $2)`,
+              `INSERT INTO qms.roles_permissions (id_role, id_perm) VALUES ($1, $2)`,
               [roleObj.id, permId]
             );
           } catch (insertErr) {
@@ -264,7 +264,7 @@ export async function deleteRole(roleCode) {
     throw new Error('Rol no encontrado');
   }
 
-  if (roleObj.isSystem || roleObj.is_system) {
+  if (roleObj.isSystem || roleObj.system_role) {
     throw new Error('No se pueden eliminar roles de sistema');
   }
 
@@ -275,7 +275,7 @@ export async function deleteRole(roleCode) {
   }
 
   // Delete permissions mappings
-  await query(`DELETE FROM qms.role_permissions WHERE id_role = $1`, [roleObj.id]);
+  await query(`DELETE FROM qms.roles_permissions WHERE id_role = $1`, [roleObj.id]);
   
   // Delete the role
   await query(`DELETE FROM qms.roles WHERE id = $1`, [roleObj.id]);

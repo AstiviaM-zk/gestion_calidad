@@ -37,7 +37,7 @@ const routes = [
         path: 'documents',
         name: 'dashboard-documents',
         component: () => import('../components/DocumentManager.vue'),
-        meta: { requiredPermission: 'templates:read' }
+        meta: { requiredPermission: 'documents:read' }
       },
       {
         path: 'users',

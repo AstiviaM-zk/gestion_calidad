@@ -10,7 +10,7 @@ const router = express.Router();
  */
 router.get('/', authenticateToken, requirePermission('departments:read'), async (req, res) => {
   try {
-    const resDb = await query(`SELECT id, title, code, description, icon, status, created_by, created_at, updated_by, updated_at FROM qms.departments ORDER BY id ASC`);
+    const resDb = await query(`SELECT id, title, code, description, icon, status, created_at, updated_by, updated_at FROM qms.departments ORDER BY id ASC`);
     return res.json({ success: true, departments: resDb.rows });
   } catch (error) {
     console.error('Error al obtener departamentos:', error.message);
@@ -29,7 +29,7 @@ router.post('/', authenticateToken, requirePermission('departments:create'), asy
     if (!title) return res.status(400).json({ success: false, message: 'El título es obligatorio' });
 
     const resDb = await query(
-      `INSERT INTO qms.departments (title, code, description, icon, status, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      `INSERT INTO qms.departments (title, code, description, icon, status, updated_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [title, code || null, description || null, icon || null, status !== undefined ? status : true, userId]
     );
     return res.status(201).json({ success: true, department: resDb.rows[0] });
