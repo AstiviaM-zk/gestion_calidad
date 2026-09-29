@@ -94,7 +94,8 @@ onMounted(() => {
 
 function openDepartment(dept) {
   if (!dept.status) return;
-  router.push(`/dashboard/departments/${dept.id}/categories`);
+  userStore.selectDepartment(dept.id);
+  router.push('/dashboard/department-categories');
 }
 </script>
 

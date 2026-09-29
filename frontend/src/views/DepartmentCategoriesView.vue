@@ -61,7 +61,7 @@ const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 
-const departmentId = computed(() => parseInt(route.params.id));
+const departmentId = computed(() => userStore.selectedDepartmentId);
 const department = computed(() => userStore.departments.find(d => d.id === departmentId.value));
 
 const categories = ref([]);
@@ -72,8 +72,8 @@ onMounted(async () => {
     await userStore.fetchDepartments();
   }
   
-  if (!department.value) {
-    // Si no existe el departamento, regresar
+  if (!departmentId.value || !department.value) {
+    // Si no existe el departamento (ej. recargó la página), regresar al inicio
     router.replace('/dashboard/overview');
     return;
   }

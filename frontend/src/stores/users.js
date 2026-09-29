@@ -5,11 +5,16 @@ export const useUserStore = defineStore('users', {
   state: () => ({
     users: [],
     departments: [],
+    selectedDepartmentId: null,
     isLoading: false,
     error: null
   }),
 
   actions: {
+    selectDepartment(id) {
+      this.selectedDepartmentId = id;
+    },
+
     async fetchUsers() {
       this.isLoading = true;
       try {

@@ -28,7 +28,7 @@ const routes = [
         component: () => import('../views/DashboardOverviewView.vue')
       },
       {
-        path: 'departments/:id/categories',
+        path: 'department-categories',
         name: 'department-categories',
         component: () => import('../views/DepartmentCategoriesView.vue')
       },

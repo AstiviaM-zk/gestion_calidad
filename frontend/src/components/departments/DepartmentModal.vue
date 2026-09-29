@@ -25,19 +25,7 @@
             </div>
             <div class="edit-form-group">
               <label class="edit-label">Icono</label>
-              <div class="icon-selector">
-                <button 
-                  v-for="iconClass in availableIcons" 
-                  :key="iconClass" 
-                  type="button" 
-                  class="icon-option" 
-                  :class="{ active: form.icon === iconClass }"
-                  @click="form.icon = iconClass"
-                  :title="iconClass"
-                >
-                  <i :class="iconClass"></i>
-                </button>
-              </div>
+              <IconSelector v-model="form.icon" />
             </div>
           </div>
           <div class="modal-footer">
@@ -58,6 +46,7 @@
 import { ref, computed, watch } from 'vue';
 import { useUserStore } from '../../stores/users';
 import { showToast } from '../../utils/toast';
+import IconSelector from '../IconSelector.vue';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -75,13 +64,7 @@ const isSaving = ref(false);
 const form = ref({ id: null, title: '', code: '', description: '', icon: 'fa-solid fa-building', status: true });
 let autoCodeRef = ''; // Para saber si el usuario no ha tocado el código manual
 
-const availableIcons = [
-  'fa-solid fa-building', 'fa-solid fa-users', 'fa-solid fa-laptop-code', 
-  'fa-solid fa-chart-line', 'fa-solid fa-briefcase', 'fa-solid fa-folder-open',
-  'fa-solid fa-scale-balanced', 'fa-solid fa-helmet-safety', 'fa-solid fa-headset',
-  'fa-solid fa-truck', 'fa-solid fa-leaf', 'fa-solid fa-stethoscope',
-  'fa-solid fa-money-bill-trend-up', 'fa-solid fa-microchip', 'fa-solid fa-shield-halved'
-];
+
 
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
@@ -174,7 +157,7 @@ async function saveDepartment() {
   max-width: 450px;
   background: #ffffff;
   border-radius: var(--radius-xl, 16px);
-  overflow: hidden;
+  /* overflow: hidden removed to allow dropdowns to break out */
 }
 
 .modal-header {
@@ -183,6 +166,8 @@ async function saveDepartment() {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border-light, #e2e8f0);
+  border-top-left-radius: var(--radius-xl, 16px);
+  border-top-right-radius: var(--radius-xl, 16px);
 }
 
 .modal-title {
@@ -223,35 +208,7 @@ async function saveDepartment() {
   box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
 }
 
-.icon-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-.icon-option {
-  width: 38px;
-  height: 38px;
-  border-radius: 8px;
-  border: 1px solid #cbd5e1;
-  background: white;
-  color: #64748b;
-  font-size: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.icon-option:hover {
-  background: #f1f5f9;
-}
-.icon-option.active {
-  background: rgba(30, 58, 138, 0.08);
-  border-color: var(--primary, #1e3a8a);
-  color: var(--primary, #1e3a8a);
-  box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.15);
-}
+
 
 .modal-footer {
   padding: 14px 20px;
@@ -260,5 +217,7 @@ async function saveDepartment() {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+  border-bottom-left-radius: var(--radius-xl, 16px);
+  border-bottom-right-radius: var(--radius-xl, 16px);
 }
 </style>
