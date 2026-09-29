@@ -3,47 +3,82 @@
     <div class="panel-section glass-card shadow-sm">
       <div class="section-header">
         <div>
-          <h3 class="section-title"><i class="fa-solid fa-building"></i> Departamentos (Catálogo)</h3>
-          <p class="section-subtitle">Administra la lista de departamentos de la organización</p>
+          <div class="title-with-badge">
+            <h3 class="section-title"><i class="fa-solid fa-building-user"></i> Gestión de Departamentos</h3>
+            <span class="dept-count-badge">
+              <i class="fa-solid fa-layer-group"></i> {{ filteredDepartments.length }}
+            </span>
+          </div>
+          <p class="section-subtitle">Administra los departamentos y áreas de la organización</p>
         </div>
-        <button v-if="canManage" class="btn btn-primary btn-sm" @click="openCreateModal">
-          <i class="fa-solid fa-plus"></i> Nuevo Departamento
-        </button>
+        
+        <div class="header-actions">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Buscar..." 
+              class="search-input"
+            />
+          </div>
+          
+          <button v-if="canManage" class="btn btn-primary btn-sm" @click="openCreateModal">
+            <i class="fa-solid fa-plus"></i> Nuevo
+          </button>
+        </div>
       </div>
 
       <div class="table-responsive">
         <table class="qms-table">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Nombre del Departamento</th>
-              <th>Código / Clave</th>
-              <th v-if="canManage">Acciones</th>
+              <th>Departamento</th>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Estado</th>
+              <th v-if="canManage" class="actions-col">Acciones</th>
             </tr>
           </thead>
-          <tbody>
-            <tr v-for="dept in departments" :key="dept.id" class="table-row">
-              <td>{{ dept.id }}</td>
-              <td class="font-bold">{{ dept.name }}</td>
+          <tbody v-if="filteredDepartments.length > 0">
+            <tr v-for="dept in filteredDepartments" :key="dept.id" :class="{'inactive-row': !dept.status}">
               <td>
-                <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
-                <span class="text-subtle text-xs" v-else>N/A</span>
-              </td>
-              <td v-if="canManage">
-                <div class="action-buttons">
-                  <button type="button" class="icon-btn edit-btn" @click="openEditModal(dept)" title="Editar">
-                    <i class="fa-solid fa-pen"></i>
-                  </button>
-                  <button type="button" class="icon-btn delete-btn" @click="confirmDelete(dept)" title="Eliminar">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
+                <div class="dept-info-cell">
+                  <div class="dept-icon-mini" :class="{ 'inactive': !dept.status }">
+                    <i :class="dept.icon || 'fa-solid fa-building'"></i>
+                  </div>
+                  <span class="dept-name">{{ dept.title }}</span>
                 </div>
               </td>
+              <td>
+                <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
+                <span v-else class="text-muted">-</span>
+              </td>
+              <td class="desc-cell">
+                <span v-if="dept.description" class="truncate-text" :title="dept.description">{{ dept.description }}</span>
+                <span v-else class="text-muted italic">Sin descripción</span>
+              </td>
+              <td>
+                <span v-if="dept.status === true" class="status-badge active">Activo</span>
+                <span v-else class="status-badge inactive">Inactivo</span>
+              </td>
+              <td v-if="canManage" class="actions-cell">
+                <button type="button" class="icon-btn edit-btn" @click="openEditModal(dept)" title="Editar">
+                  <i class="fa-solid fa-pen"></i>
+                </button>
+                <button type="button" class="icon-btn delete-btn" v-if="dept.status === true" @click="confirmDelete(dept)" title="Inhabilitar">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </td>
             </tr>
-            <tr v-if="departments.length === 0">
-              <td :colspan="canManage ? 4 : 3" class="text-center empty-state">
-                <i class="fa-solid fa-building-circle-xmark empty-icon"></i>
-                <p>No hay departamentos registrados.</p>
+          </tbody>
+          <tbody v-else>
+            <tr>
+              <td :colspan="canManage ? 5 : 4" class="empty-cell">
+                <div class="empty-state-mini">
+                  <i class="fa-solid fa-building-circle-xmark"></i>
+                  <p>No se encontraron departamentos.</p>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -51,40 +86,19 @@
       </div>
     </div>
 
-    <!-- Modal Formulario -->
-    <Teleport to="body">
-      <div v-if="showModal" class="modal-backdrop" @click.self="closeModal">
-        <div class="modal-card shadow-lg glass-card">
-          <div class="modal-header">
-            <h4 class="modal-title">
-              <i :class="isEditing ? 'fa-solid fa-pen-to-square' : 'fa-solid fa-plus'"></i> 
-              {{ isEditing ? 'Editar Departamento' : 'Nuevo Departamento' }}
-            </h4>
-            <button type="button" class="icon-btn" @click="closeModal"><i class="fa-solid fa-xmark"></i></button>
-          </div>
-          <form @submit.prevent="saveDepartment">
-            <div class="modal-body">
-              <div class="edit-form-group">
-                <label class="edit-label">Nombre del Departamento *</label>
-                <input type="text" v-model="form.name" class="edit-input" placeholder="Ej. Recursos Humanos" required>
-              </div>
-              <div class="edit-form-group">
-                <label class="edit-label">Código / Clave (Opcional)</label>
-                <input type="text" v-model="form.code" class="edit-input" placeholder="Ej. RRHH">
-              </div>
-            </div>
-            <div class="modal-footer">
-              <button type="button" class="btn btn-secondary btn-sm" @click="closeModal">Cancelar</button>
-              <button type="submit" class="btn btn-primary btn-sm" :disabled="isSaving">
-                <i v-if="isSaving" class="fa-solid fa-circle-notch fa-spin"></i>
-                <i v-else class="fa-solid fa-save"></i> 
-                {{ isEditing ? 'Guardar Cambios' : 'Crear Departamento' }}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </Teleport>
+    <!-- Modal Formulario (Crear/Editar) -->
+    <DepartmentModal v-model="showModal" :initialData="form" />
+
+    <!-- Confirm Modal for Deletion -->
+    <ConfirmModal 
+      v-model="showConfirmModal"
+      title="Inhabilitar Departamento"
+      :message="confirmMessage"
+      type="danger"
+      confirmText="Inhabilitar"
+      :isLoading="isDeleting"
+      @confirm="proceedDelete"
+    />
   </div>
 </template>
 
@@ -93,6 +107,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useUserStore } from '../../stores/users';
 import { useAuthStore } from '../../stores/auth';
 import { showToast } from '../../utils/toast';
+import DepartmentModal from './DepartmentModal.vue';
+import ConfirmModal from '../ConfirmModal.vue';
 
 const userStore = useUserStore();
 const authStore = useAuthStore();
@@ -101,9 +117,21 @@ const canManage = computed(() => authStore.hasPermission('departments:update') |
 const departments = computed(() => userStore.departments);
 
 const showModal = ref(false);
-const isEditing = ref(false);
-const isSaving = ref(false);
-const form = ref({ id: null, name: '', code: '' });
+const showConfirmModal = ref(false);
+const deptToDelete = ref(null);
+const isDeleting = ref(false);
+const confirmMessage = ref('');
+const form = ref({ id: null, title: '', code: '', description: '', icon: '', status: true });
+const searchQuery = ref('');
+
+const filteredDepartments = computed(() => {
+  if (!searchQuery.value) return departments.value;
+  const lowerQ = searchQuery.value.toLowerCase();
+  return departments.value.filter(d => 
+    (d.title && d.title.toLowerCase().includes(lowerQ)) || 
+    (d.code && d.code.toLowerCase().includes(lowerQ))
+  );
+});
 
 onMounted(() => {
   if (departments.value.length === 0) {
@@ -112,53 +140,41 @@ onMounted(() => {
 });
 
 function openCreateModal() {
-  form.value = { id: null, name: '', code: '' };
-  isEditing.value = false;
+  form.value = { id: null, title: '', code: '', description: '', icon: '', status: true };
   showModal.value = true;
 }
 
 function openEditModal(dept) {
-  form.value = { id: dept.id, name: dept.name, code: dept.code || '' };
-  isEditing.value = true;
+  form.value = { id: dept.id, title: dept.title, code: dept.code || '', description: dept.description || '', icon: dept.icon || '', status: dept.status !== false };
   showModal.value = true;
 }
 
-function closeModal() {
-  showModal.value = false;
-  form.value = { id: null, name: '', code: '' };
+function confirmDelete(dept) {
+  deptToDelete.value = dept;
+  confirmMessage.value = `¿Estás seguro de inhabilitar el departamento "${dept.title}"?`;
+  showConfirmModal.value = true;
 }
 
-async function saveDepartment() {
-  if (!form.value.name.trim()) {
-    showToast.error('El nombre es obligatorio');
+async function proceedDelete() {
+  if (!deptToDelete.value) return;
+
+  const usersInDept = userStore.users.filter(u => u.departmentId === deptToDelete.value.id);
+  if (usersInDept.length > 0) {
+    showToast.error(`No es posible inhabilitar departamentos que aún tienen usuarios asociados (${usersInDept.length} usuarios).`);
+    showConfirmModal.value = false;
     return;
   }
 
-  isSaving.value = true;
-  let res;
-  if (isEditing.value) {
-    res = await userStore.updateDepartment(form.value.id, { name: form.value.name, code: form.value.code });
-  } else {
-    res = await userStore.createDepartment({ name: form.value.name, code: form.value.code });
-  }
-  isSaving.value = false;
+  isDeleting.value = true;
+  const res = await userStore.deleteDepartment(deptToDelete.value.id);
+  isDeleting.value = false;
 
   if (res.success) {
-    showToast.success(isEditing.value ? 'Departamento actualizado' : 'Departamento creado');
-    closeModal();
+    showToast.success('Departamento inhabilitado exitosamente');
+    showConfirmModal.value = false;
   } else {
-    showToast.error(res.message || 'Error al guardar el departamento');
-  }
-}
-
-async function confirmDelete(dept) {
-  if (!confirm(`¿Estás seguro de eliminar el departamento "${dept.name}"? Esta acción no se puede deshacer y fallará si hay usuarios asignados a él.`)) return;
-
-  const res = await userStore.deleteDepartment(dept.id);
-  if (res.success) {
-    showToast.success('Departamento eliminado exitosamente');
-  } else {
-    showToast.error(res.message || 'Error al eliminar el departamento');
+    showToast.error(res.message || 'Error al inhabilitar el departamento');
+    showConfirmModal.value = false;
   }
 }
 </script>
@@ -170,6 +186,137 @@ async function confirmDelete(dept) {
   flex-direction: column;
 }
 
+.title-with-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.dept-count-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(30, 58, 138, 0.08);
+  color: var(--primary, #1e3a8a);
+  border: 1px solid rgba(30, 58, 138, 0.18);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 240px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 12px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  font-size: 13px;
+  border: 1px solid var(--border-light, #cbd5e1);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--text-main, #1e293b);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.search-input:focus {
+  border-color: var(--primary, #1e3a8a);
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border-light, #e2e8f0);
+}
+
+.qms-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  background: #fff;
+}
+
+.qms-table th {
+  background: #f8fafc;
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--border-light, #e2e8f0);
+}
+
+.qms-table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border-light, #e2e8f0);
+  color: var(--text-main, #1e293b);
+  vertical-align: middle;
+}
+
+.qms-table tr:hover {
+  background-color: #f8fafc;
+}
+
+.inactive-row {
+  background-color: #fcfcfc;
+}
+.inactive-row td {
+  color: var(--text-muted, #94a3b8);
+}
+
+.dept-info-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dept-icon-mini {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(30, 58, 138, 0.08);
+  color: var(--primary, #1e3a8a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.dept-icon-mini.inactive {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.dept-name {
+  font-weight: 600;
+}
+
 .badge-code {
   background: #f1f5f9;
   border: 1px solid #cbd5e1;
@@ -178,92 +325,106 @@ async function confirmDelete(dept) {
   font-size: 11px;
   font-weight: 700;
   color: #475569;
+  white-space: nowrap;
 }
 
-.action-buttons {
+.desc-cell {
+  max-width: 300px;
+}
+
+.truncate-text {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.italic {
+  font-style: italic;
+}
+
+.text-muted {
+  color: #94a3b8;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.status-badge.inactive {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.actions-col {
+  width: 100px;
+  text-align: center;
+}
+
+.actions-cell {
   display: flex;
   gap: 8px;
-  align-items: center;
+  justify-content: center;
 }
 
-.edit-btn { color: #3b82f6; }
-.edit-btn:hover { background: #eff6ff; color: #2563eb; }
-
-.delete-btn { color: #ef4444; }
-.delete-btn:hover { background: #fef2f2; color: #dc2626; }
-
-.modal-backdrop {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(4px);
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 16px;
-}
-
-.modal-card {
-  width: 100%;
-  max-width: 450px;
-  background: #ffffff;
-  border-radius: var(--radius-xl, 16px);
-  overflow: hidden;
-}
-
-.modal-header {
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid var(--border-light, #e2e8f0);
-}
-
-.modal-title {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text-main, #1e293b);
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.edit-form-group {
-  margin-bottom: 16px;
-}
-.edit-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: #475569;
-  margin-bottom: 6px;
-}
-.edit-input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 14px;
+  cursor: pointer;
   transition: all 0.2s;
-}
-.edit-input:focus {
-  border-color: #3b82f6;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  font-size: 14px;
 }
 
-.modal-footer {
-  padding: 14px 20px;
-  background: #f8fafc;
-  border-top: 1px solid var(--border-light, #e2e8f0);
+.edit-btn {
+  color: var(--primary, #1e3a8a);
+}
+.edit-btn:hover {
+  background: rgba(30, 58, 138, 0.08);
+}
+
+.delete-btn {
+  color: #ef4444;
+}
+.delete-btn:hover {
+  background: #fef2f2;
+}
+
+.empty-cell {
+  padding: 40px !important;
+}
+
+.empty-state-mini {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  gap: 12px;
+}
+
+.empty-state-mini i {
+  font-size: 32px;
+  color: #cbd5e1;
 }
 </style>

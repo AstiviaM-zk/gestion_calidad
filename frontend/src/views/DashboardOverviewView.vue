@@ -1,101 +1,103 @@
 <template>
   <div class="dashboard-content">
     <div class="page-title-box">
-      <h2 class="page-title">Panel de Control de Calidad (QMS)</h2>
-      <p class="page-subtitle">Bienvenido de nuevo, {{ userName }}. Aquí está el estado actual del sistema.</p>
+      <h2 class="page-title">Departamentos del Sistema</h2>
+      <p class="page-subtitle">Selecciona un departamento para explorar sus documentos, formatos y evidencias.</p>
     </div>
 
-    <div class="kpi-grid">
-      <div class="kpi-card shadow-card">
-        <div class="kpi-icon icon-blue">
-          <i class="fa-solid fa-files"></i>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Total Documentos</span>
-          <span class="kpi-value">{{ documentStore.stats.totalDocuments || documentStore.documents.length }}</span>
-          <span class="kpi-subtext text-emerald"><i class="fa-solid fa-arrow-up"></i> +4 este mes</span>
-        </div>
+    <div class="search-box-container">
+      <div class="search-box">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input 
+          type="text" 
+          v-model="searchQuery" 
+          placeholder="Buscar departamento por título o código..." 
+          class="search-input"
+        />
+        <button 
+          v-if="searchQuery" 
+          type="button" 
+          class="clear-search-btn" 
+          @click="searchQuery = ''"
+          title="Limpiar búsqueda"
+        >
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
+    </div>
 
-      <div class="kpi-card shadow-card">
-        <div class="kpi-icon icon-amber">
-          <i class="fa-solid fa-clock-rotate-left"></i>
+    <div class="departments-grid" v-if="filteredDepartments.length > 0">
+      <div 
+        v-for="dept in filteredDepartments" 
+        :key="dept.id" 
+        class="dept-card" 
+        :class="{ 'inactive-card': !dept.status }" 
+        @click="openDepartment(dept)"
+      >
+        <div class="dept-card-header">
+          <div class="dept-icon-wrapper" :class="{ 'inactive': !dept.status }">
+            <i :class="dept.icon || 'fa-solid fa-building'"></i>
+          </div>
         </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Revisiones Pendientes</span>
-          <span class="kpi-value">{{ documentStore.stats.pendingReviews || 3 }}</span>
-          <span class="kpi-subtext text-amber"><i class="fa-solid fa-triangle-exclamation"></i> Requiere atención</span>
+        
+        <div class="dept-card-body">
+          <h4 class="dept-title">{{ dept.title }}</h4>
+          <p class="dept-description" v-if="dept.description">{{ dept.description }}</p>
+          <p class="dept-description empty-desc" v-else>Sin descripción</p>
         </div>
-      </div>
-
-      <div class="kpi-card shadow-card">
-        <div class="kpi-icon icon-emerald">
-          <i class="fa-solid fa-shield-check"></i>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Cumplimiento ISO 9001</span>
-          <span class="kpi-value">{{ documentStore.stats.qualityComplianceRate || '98.5%' }}</span>
-          <span class="kpi-subtext text-emerald"><i class="fa-solid fa-circle-check"></i> Auditoría aprobada</span>
-        </div>
-      </div>
-
-      <div v-if="authStore.hasRole('admin_sgc')" class="kpi-card shadow-card">
-        <div class="kpi-icon icon-purple">
-          <i class="fa-solid fa-users"></i>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Usuarios Registrados</span>
-          <span class="kpi-value">{{ userStore.users.length }}</span>
-          <span class="kpi-subtext text-purple"><i class="fa-solid fa-user-check"></i> Gestión de Acceso</span>
-        </div>
-      </div>
-
-      <div v-else class="kpi-card shadow-card">
-        <div class="kpi-icon icon-purple">
-          <i class="fa-solid fa-id-card"></i>
-        </div>
-        <div class="kpi-info">
-          <span class="kpi-label">Nivel de Acceso</span>
-          <span class="kpi-value">{{ roleLabel }}</span>
-          <span class="kpi-subtext text-purple"><i class="fa-solid fa-shield-halved"></i> Rol Asignado</span>
+        
+        <div class="dept-card-footer">
+          <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
+          <span v-else></span>
+          <span v-if="dept.status === true" class="badge-active">Activo</span>
+          <span v-else class="badge-inactive">Inactivo</span>
         </div>
       </div>
     </div>
 
-    <DocumentManager />
+    <div v-else class="empty-state">
+      <i class="fa-solid fa-building-circle-xmark empty-icon" v-if="!searchQuery"></i>
+      <i class="fa-solid fa-magnifying-glass empty-icon" v-else></i>
+      <p v-if="!searchQuery">No hay departamentos disponibles.</p>
+      <p v-else>No se encontraron departamentos con la búsqueda "{{ searchQuery }}".</p>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
-import { useAuthStore } from '../stores/auth';
-import { useDocumentStore } from '../stores/documents';
+import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/users';
-import DocumentManager from '../components/DocumentManager.vue';
+import { useAuthStore } from '../stores/auth';
 
-const authStore = useAuthStore();
-const documentStore = useDocumentStore();
+const router = useRouter();
 const userStore = useUserStore();
+const authStore = useAuthStore();
 
-const userName = computed(() => {
-  return authStore.user?.givenName || authStore.user?.name || 'Usuario';
-});
+const searchQuery = ref('');
+const departments = computed(() => userStore.departments);
 
-const roleLabel = computed(() => {
-  switch (authStore.userRole) {
-    case 'admin_sgc': return 'Administrador';
-    case 'leader': return 'Líder de Área';
-    case 'auditor': return 'Auditor';
-    default: return 'Operativo';
-  }
+const filteredDepartments = computed(() => {
+  if (!searchQuery.value) return departments.value.filter(d => d.status); // Only active by default? We'll show all or active. Let's show all.
+  const lowerQ = searchQuery.value.toLowerCase();
+  return departments.value.filter(d => 
+    (d.title && d.title.toLowerCase().includes(lowerQ)) || 
+    (d.code && d.code.toLowerCase().includes(lowerQ))
+  );
 });
 
 onMounted(() => {
-  documentStore.fetchAll();
-  if (authStore.hasRole('admin_sgc')) {
-    userStore.fetchUsers();
+  if (departments.value.length === 0) {
+    userStore.fetchDepartments();
   }
 });
+
+function openDepartment(dept) {
+  if (!dept.status) return;
+  // TODO: Navigate to the department's documents view
+  // router.push(`/dashboard/departments/${dept.id}/documents`);
+  console.log('Open department:', dept);
+}
 </script>
 
 <style scoped>
@@ -103,13 +105,10 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-height: 100%;
-  overflow: hidden;
 }
 
 .page-title-box {
-  margin-bottom: 12px;
-  flex-shrink: 0;
+  margin-bottom: 24px;
 }
 
 .page-title {
@@ -118,6 +117,7 @@ onMounted(() => {
   font-weight: 800;
   color: var(--primary);
   letter-spacing: -0.3px;
+  margin-bottom: 4px;
 }
 
 .page-subtitle {
@@ -125,69 +125,206 @@ onMounted(() => {
   color: var(--text-muted);
 }
 
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 14px;
-  margin-bottom: 14px;
-  flex-shrink: 0;
+.search-box-container {
+  margin-bottom: 24px;
 }
 
-.kpi-card {
-  background: #ffffff;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  padding: 14px 16px;
+.search-box {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
-  transition: var(--transition);
+  max-width: 400px;
 }
 
-.kpi-card:hover {
-  border-color: var(--border-glow);
+.search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted, #94a3b8);
+  font-size: 14px;
+  pointer-events: none;
 }
 
-.kpi-icon {
-  width: 44px;
-  height: 44px;
+.search-input {
+  width: 100%;
+  padding: 10px 38px;
+  font-size: 14px;
+  border: 1px solid var(--border-light, #cbd5e1);
   border-radius: 12px;
+  background: #ffffff;
+  color: var(--text-main, #1e293b);
+  transition: all 0.2s ease;
+  outline: none;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.search-input:focus {
+  border-color: var(--primary, #1e3a8a);
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
+}
+
+.clear-search-btn {
+  position: absolute;
+  right: 12px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
+  border-radius: 50%;
+  transition: all 0.2s ease;
 }
 
-.icon-blue { background: #e0e7ff; color: #1e3a8a; }
-.icon-amber { background: #fffbeb; color: #b45309; }
-.icon-emerald { background: rgba(117, 186, 33, 0.14); color: #75ba21; }
-.icon-purple { background: #f0f9ff; color: #0284c7; }
+.clear-search-btn:hover {
+  color: var(--primary, #1e3a8a);
+  background: #f1f5f9;
+}
 
-.kpi-info {
+.departments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding-bottom: 20px;
+}
+
+.dept-card {
   display: flex;
   flex-direction: column;
+  padding: 24px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border-light, #e2e8f0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.kpi-label {
-  font-size: 10px;
+.dept-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary);
+}
+
+.inactive-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.inactive-card:hover {
+  transform: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border-color: #e2e8f0;
+}
+
+.dept-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.dept-icon-wrapper {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: rgba(30, 58, 138, 0.08);
+  color: var(--primary, #1e3a8a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+}
+
+.dept-icon-wrapper.inactive {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.dept-card-body {
+  flex-grow: 1;
+  margin-bottom: 20px;
+}
+
+.dept-title {
+  font-size: 18px;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.dept-description {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.empty-desc {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.dept-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.badge-code {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.badge-active {
+  background: #75ba21;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
-.kpi-value {
-  font-family: var(--font-heading);
-  font-size: 22px;
-  font-weight: 800;
-  color: var(--text-main);
-  line-height: 1.1;
-  margin: 1px 0;
+.badge-inactive {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
-.kpi-subtext {
-  font-size: 10px;
-  font-weight: 600;
+.empty-state {
+  padding: 80px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+}
+
+.empty-icon {
+  font-size: 64px;
+  color: #cbd5e1;
+  margin-bottom: 20px;
 }
 </style>

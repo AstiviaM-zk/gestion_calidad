@@ -6,7 +6,7 @@
     @click="navigate('/dashboard/overview')"
   >
     <i class="fa-solid fa-chart-pie"></i>
-    <span>Resumen Dashboard</span>
+    <span>Inicio</span>
   </button>
 
   <button 
@@ -59,7 +59,7 @@ const route = useRoute();
 const authStore = useAuthStore();
 const documentStore = useDocumentStore();
 
-const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
+const canReadDocuments = computed(() => authStore.hasPermission('documents:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
 const canReadDepartments = computed(() => authStore.hasPermission('departments:read'));

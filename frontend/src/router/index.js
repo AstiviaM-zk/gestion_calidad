@@ -37,7 +37,7 @@ const routes = [
         path: 'documents',
         name: 'dashboard-documents',
         component: () => import('../components/DocumentManager.vue'),
-        meta: { requiredPermission: 'templates:read' }
+        meta: { requiredPermission: 'documents:read' }
       },
       {
         path: 'users',
@@ -50,11 +50,6 @@ const routes = [
         name: 'dashboard-roles',
         component: () => import('../components/roles_permissions/RoleManager.vue'),
         meta: { requiredPermission: 'roles:read' }
-      },
-      {
-        path: 'profile',
-        name: 'dashboard-profile',
-        component: () => import('../components/UserProfile.vue')
       }
     ]
   },
