@@ -28,26 +28,28 @@ const routes = [
         component: () => import('../views/DashboardOverviewView.vue')
       },
       {
+        path: 'departments',
+        name: 'dashboard-departments',
+        component: () => import('../components/departments/DepartmentManager.vue'),
+        meta: { requiredPermission: 'departments:read' }
+      },
+      {
         path: 'documents',
         name: 'dashboard-documents',
-        component: () => import('../components/DocumentManager.vue')
+        component: () => import('../components/DocumentManager.vue'),
+        meta: { requiredPermission: 'templates:read' }
       },
       {
         path: 'users',
         name: 'dashboard-users',
         component: () => import('../components/UserList.vue'),
-        meta: { allowedRoles: ['admin_sgc'] }
+        meta: { requiredPermission: 'users:read' }
       },
       {
         path: 'roles',
         name: 'dashboard-roles',
-        component: () => import('../components/RoleManager.vue'),
-        meta: { allowedRoles: ['admin_sgc'] }
-      },
-      {
-        path: 'profile',
-        name: 'dashboard-profile',
-        component: () => import('../components/UserProfile.vue')
+        component: () => import('../components/roles_permissions/RoleManager.vue'),
+        meta: { requiredPermission: 'roles:read' }
       }
     ]
   },
@@ -72,6 +74,12 @@ router.beforeEach((to, from, next) => {
   } 
   
   if (to.matched.some(record => record.meta.requiresGuest) && isAuthenticated) {
+    return next('/dashboard/overview');
+  }
+
+  // Validación de acceso por permiso a nivel de ruta
+  const permissionProtected = to.matched.find(record => record.meta && record.meta.requiredPermission);
+  if (permissionProtected && !authStore.hasPermission(permissionProtected.meta.requiredPermission)) {
     return next('/dashboard/overview');
   }
 

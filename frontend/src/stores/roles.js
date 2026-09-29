@@ -4,6 +4,7 @@ import api from '../services/api';
 export const useRoleStore = defineStore('roles', {
   state: () => ({
     roles: [],
+    permissions: [],
     isLoading: false,
     error: null
   }),
@@ -24,6 +25,17 @@ export const useRoleStore = defineStore('roles', {
       }
     },
 
+    async fetchPermissions() {
+      try {
+        const { data } = await api.get('/permissions');
+        if (data.success) {
+          this.permissions = data.permissions;
+        }
+      } catch (err) {
+        console.error('Error cargando permisos:', err);
+      }
+    },
+
     async createRole(roleData) {
       try {
         const { data } = await api.post('/roles', roleData);
@@ -37,6 +49,40 @@ export const useRoleStore = defineStore('roles', {
         return {
           success: false,
           message: err.response?.data?.message || 'Error al crear el rol'
+        };
+      }
+    },
+
+    async updateRole(roleCode, roleData) {
+      try {
+        const { data } = await api.put(`/roles/${roleCode}`, roleData);
+        if (data.success) {
+          await this.fetchRoles();
+          return { success: true, message: data.message, role: data.role };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        console.error('Error actualizando rol:', err);
+        return {
+          success: false,
+          message: err.response?.data?.message || 'Error al actualizar el rol'
+        };
+      }
+    },
+    
+    async deleteRole(roleCode) {
+      try {
+        const { data } = await api.delete(`/roles/${roleCode}`);
+        if (data.success) {
+          await this.fetchRoles();
+          return { success: true, message: data.message };
+        }
+        return { success: false, message: data.message };
+      } catch (err) {
+        console.error('Error eliminando rol:', err);
+        return {
+          success: false,
+          message: err.response?.data?.message || 'Error al eliminar el rol'
         };
       }
     }

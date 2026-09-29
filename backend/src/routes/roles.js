@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllRoles, createRole } from '../services/roleService.js';
+import { getAllRoles, createRole, getAllPermissions, updateRole, deleteRole } from '../services/roleService.js';
 import { updateUserRole } from '../services/userService.js';
 import { authenticateToken, requireRole } from '../middleware/authMiddleware.js';
 
@@ -7,21 +7,47 @@ const router = express.Router();
 
 /**
  * GET /api/roles
- * Returns list of system and custom roles with permissions
+ * Returns list of system and custom roles with permissions from PostgreSQL
  */
-router.get('/roles', authenticateToken, (req, res) => {
-  const roles = getAllRoles();
-  res.json({
-    success: true,
-    roles
-  });
+router.get('/roles', authenticateToken, async (req, res) => {
+  try {
+    const roles = await getAllRoles();
+    res.json({
+      success: true,
+      roles
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Error al obtener roles'
+    });
+  }
+});
+
+/**
+ * GET /api/permissions
+ * Returns list of all system permissions from PostgreSQL
+ */
+router.get('/permissions', authenticateToken, async (req, res) => {
+  try {
+    const permissions = await getAllPermissions();
+    res.json({
+      success: true,
+      permissions
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Error al obtener permisos'
+    });
+  }
 });
 
 /**
  * POST /api/roles
  * Creates a new custom role (Exclusivo Administradores)
  */
-router.post('/roles', authenticateToken, requireRole('admin_sgc'), (req, res) => {
+router.post('/roles', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
   try {
     const { name, description, permissions } = req.body;
 
@@ -32,7 +58,7 @@ router.post('/roles', authenticateToken, requireRole('admin_sgc'), (req, res) =>
       });
     }
 
-    const newRole = createRole({ name, description, permissions });
+    const newRole = await createRole({ name, description, permissions });
     res.status(201).json({
       success: true,
       message: 'Rol creado exitosamente',
@@ -46,6 +72,48 @@ router.post('/roles', authenticateToken, requireRole('admin_sgc'), (req, res) =>
   }
 });
 
+/**
+ * PUT /api/roles/:code
+ * Updates an existing role and its permissions (Exclusivo Administradores)
+ */
+router.put('/roles/:code', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { name, description, permissions } = req.body;
+
+    const updatedRole = await updateRole(code, { name, description, permissions });
+    res.json({
+      success: true,
+      message: 'Rol actualizado exitosamente',
+      role: updatedRole
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Error al actualizar el rol'
+    });
+  }
+});
+
+/**
+ * DELETE /api/roles/:code
+ * Deletes an existing role if it has no associated users (Exclusivo Administradores)
+ */
+router.delete('/roles/:code', authenticateToken, requireRole('admin_sgc'), async (req, res) => {
+  try {
+    const { code } = req.params;
+    await deleteRole(code);
+    res.json({
+      success: true,
+      message: 'Rol eliminado exitosamente'
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Error al eliminar el rol'
+    });
+  }
+});
 /**
  * PUT /api/users/:email/role
  * Updates an authenticated user's role (Exclusivo Administradores)

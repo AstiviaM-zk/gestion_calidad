@@ -178,10 +178,6 @@
           <p>Configura tu <code>GOOGLE_CLIENT_ID</code> en el archivo <code>backend/.env</code> para habilitar la autenticación real con Google Cloud.</p>
         </div>
       </div>
-
-      <div v-if="statusMessage" :class="['status-msg', statusType, 'shadow-sm']">
-        <i :class="statusIcon"></i> {{ statusMessage }}
-      </div>
     </div>
 
     <footer class="card-footer">
@@ -232,7 +228,7 @@ const statusType = computed(() => authStore.statusType);
 const isLoading = computed(() => authStore.isLoading);
 
 const isDefaultClientId = computed(() => {
-  return !!(googleClientId.value && googleClientId.value.includes('YOUR_GOOGLE_CLIENT_ID'));
+  return !googleClientId.value || googleClientId.value.includes('YOUR_GOOGLE_CLIENT_ID');
 });
 
 const statusIcon = computed(() => {
@@ -259,7 +255,11 @@ watch(googleClientId, () => {
 });
 
 function initGoogleSdk() {
-  const targetClientId = googleClientId.value || '606541311192-nta8lgacqaaofml43jci2vcokumom3mp.apps.googleusercontent.com';
+  const targetClientId = googleClientId.value;
+  if (!targetClientId) {
+    sdkLoading.value = false;
+    return;
+  }
   let attempts = 0;
   const interval = setInterval(() => {
     attempts++;

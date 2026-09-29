@@ -11,55 +11,13 @@
       </div>
 
       <nav class="sidebar-nav">
-        <button 
-          :class="['nav-item', { active: isTabActive('/dashboard/overview') }]"
-          @click="navigate('/dashboard/overview')"
-        >
-          <i class="fa-solid fa-chart-pie"></i>
-          <span>Resumen Dashboard</span>
-        </button>
-
-        <button 
-          :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
-          @click="navigate('/dashboard/documents')"
-        >
-          <i class="fa-solid fa-folder-closed"></i>
-          <span>Gestor de Documentos</span>
-          <span class="badge-count">{{ documentStore.documents.length }}</span>
-        </button>
-
-        <button 
-          v-if="canManageUsers"
-          :class="['nav-item', { active: isTabActive('/dashboard/users') }]"
-          @click="navigate('/dashboard/users')"
-        >
-          <i class="fa-solid fa-users"></i>
-          <span>Usuarios</span>
-          <span class="badge-count light">{{ userStore.users.length }}</span>
-        </button>
-
-        <button 
-          v-if="canManageRoles"
-          :class="['nav-item', { active: isTabActive('/dashboard/roles') }]"
-          @click="navigate('/dashboard/roles')"
-        >
-          <i class="fa-solid fa-user-gear"></i>
-          <span>Roles y Permisos</span>
-          <span class="badge-count light">{{ roleStore.roles.length || 3 }}</span>
-        </button>
-
-        <button 
-          :class="['nav-item', { active: isTabActive('/dashboard/profile') }]"
-          @click="navigate('/dashboard/profile')"
-        >
-          <i class="fa-solid fa-circle-user"></i>
-          <span>Mi Perfil</span>
-        </button>
+        <NavLinks @navigate="navigate" />
       </nav>
 
       <div class="sidebar-footer">
-        <button class="btn btn-secondary btn-sm" @click="handleLogout">
-          <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+        <button class="btn btn-secondary btn-full" @click="handleLogout">
+          <i class="fa-solid fa-right-from-bracket"></i>
+          <span>Cerrar Sesión</span>
         </button>
       </div>
     </aside>
@@ -73,6 +31,7 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import NavLinks from '../components/NavLinks.vue';
 import { useAuthStore } from '../stores/auth';
 import { useDocumentStore } from '../stores/documents';
 import { useUserStore } from '../stores/users';
@@ -89,8 +48,10 @@ const roleStore = useRoleStore();
 const user = computed(() => authStore.user);
 const userRole = computed(() => user.value?.role || 'operator');
 
-const canManageUsers = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
-const canManageRoles = computed(() => authStore.hasRole('admin_sgc') || authStore.hasPermission('users:manage'));
+const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
+const canReadUsers = computed(() => authStore.hasPermission('users:read'));
+const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
+const canReadDepartments = computed(() => authStore.hasPermission('departments:read'));
 
 const roleLabel = computed(() => {
   switch (userRole.value) {
@@ -133,9 +94,13 @@ function onAvatarError(e) {
 
 onMounted(async () => {
   await authStore.fetchCurrentUser();
-  documentStore.fetchAll();
-  if (canManageUsers.value) {
+  if (canReadDocuments.value) {
+    documentStore.fetchAll();
+  }
+  if (canReadUsers.value) {
     userStore.fetchUsers();
+  }
+  if (canReadRoles.value) {
     roleStore.fetchRoles();
   }
 });
@@ -144,8 +109,8 @@ onMounted(async () => {
 <style scoped>
 .admin-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 20px;
+  grid-template-columns: 290px 1fr;
+  gap: 16px;
   width: 100%;
   height: 100%;
   overflow: hidden;
@@ -195,7 +160,7 @@ onMounted(async () => {
   color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 150px;
+  max-width: 180px;
   white-space: nowrap;
 }
 
@@ -221,6 +186,16 @@ onMounted(async () => {
   gap: 6px;
   flex: 1;
   overflow-y: auto;
+}
+
+.nav-section-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 14px 4px 14px;
+  margin-top: 4px;
 }
 
 .nav-item {
@@ -280,6 +255,17 @@ onMounted(async () => {
 .sidebar-footer {
   padding-top: 12px;
   border-top: 1px solid var(--border-light);
+  width: 100%;
+}
+
+.sidebar-footer .btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
 }
 
 .admin-main {

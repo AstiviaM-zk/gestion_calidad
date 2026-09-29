@@ -63,50 +63,7 @@
 
             <!-- Navegación Móvil -->
             <nav class="drawer-nav">
-              <span class="drawer-section-title">Navegación del Sistema</span>
-              
-              <button 
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/overview') }]"
-                @click="navigate('/dashboard/overview')"
-              >
-                <i class="fa-solid fa-chart-pie"></i>
-                <span>Resumen Dashboard</span>
-              </button>
-
-              <button 
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/documents') }]"
-                @click="navigate('/dashboard/documents')"
-              >
-                <i class="fa-solid fa-folder-closed"></i>
-                <span>Gestor de Documentos</span>
-                <span class="badge-count" v-if="documentsCount">{{ documentsCount }}</span>
-              </button>
-
-              <button 
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/users') }]"
-                @click="navigate('/dashboard/users')"
-              >
-                <i class="fa-solid fa-users"></i>
-                <span>Usuarios</span>
-                <span class="badge-count light" v-if="usersCount">{{ usersCount }}</span>
-              </button>
-
-              <button 
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/roles') }]"
-                @click="navigate('/dashboard/roles')"
-              >
-                <i class="fa-solid fa-user-gear"></i>
-                <span>Roles y Permisos</span>
-                <span class="badge-count light" v-if="rolesCount">{{ rolesCount }}</span>
-              </button>
-
-              <button 
-                :class="['drawer-nav-item', { active: isTabActive('/dashboard/profile') }]"
-                @click="navigate('/dashboard/profile')"
-              >
-                <i class="fa-solid fa-circle-user"></i>
-                <span>Mi Perfil & Token</span>
-              </button>
+              <NavLinks @navigate="navigate" />
             </nav>
 
             <div class="drawer-status-box">
@@ -129,24 +86,16 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
+import NavLinks from "./NavLinks.vue";
 import { useAuthStore } from "../stores/auth";
-import { useDocumentStore } from "../stores/documents";
-import { useUserStore } from "../stores/users";
-import { useRoleStore } from "../stores/roles";
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
-const documentStore = useDocumentStore();
-const userStore = useUserStore();
-const roleStore = useRoleStore();
 
 const isMobileMenuOpen = ref(false);
 
 const user = computed(() => authStore.user);
-const documentsCount = computed(() => documentStore.documents.length);
-const usersCount = computed(() => userStore.users.length);
-const rolesCount = computed(() => roleStore.roles.length);
 
 const userAvatar = computed(() => {
   return user.value?.picture || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.value?.name || "User") + "&background=1e3a8a&color=fff";
@@ -175,22 +124,24 @@ function handleLogout() {
 <style scoped>
 .app-navbar {
   width: 100%;
-  max-width: 1320px;
-  padding: 10px 24px;
-  margin: 0 auto;
+  max-width: 100%;
+  padding: 10px 32px;
+  margin: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-radius: 100px;
+  border-radius: 0;
   flex-shrink: 0;
   box-sizing: border-box;
 }
 
 .glass-nav {
-  background: rgba(255, 255, 255, 0.88);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-light);
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
 }
 
 .nav-brand {
@@ -458,14 +409,14 @@ function handleLogout() {
   }
   .app-navbar {
     padding: 10px 16px !important;
-    border-radius: 20px !important;
+    border-radius: 0 !important;
   }
 }
 
 @media (max-width: 600px) {
   .app-navbar {
     padding: 8px 12px !important;
-    border-radius: 14px !important;
+    border-radius: 0 !important;
   }
   .nav-tag {
     display: none !important;
