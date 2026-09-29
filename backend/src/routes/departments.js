@@ -10,7 +10,7 @@ const router = express.Router();
  */
 router.get('/', authenticateToken, requirePermission('departments:read'), async (req, res) => {
   try {
-    const resDb = await query(`SELECT id, name, code FROM qms.departments ORDER BY id ASC`);
+    const resDb = await query(`SELECT id, title, code, description, icon, status, created_by, created_at, updated_by, updated_at FROM qms.departments ORDER BY id ASC`);
     return res.json({ success: true, departments: resDb.rows });
   } catch (error) {
     console.error('Error al obtener departamentos:', error.message);
@@ -24,12 +24,13 @@ router.get('/', authenticateToken, requirePermission('departments:read'), async 
  */
 router.post('/', authenticateToken, requirePermission('departments:create'), async (req, res) => {
   try {
-    const { name, code } = req.body;
-    if (!name) return res.status(400).json({ success: false, message: 'El nombre es obligatorio' });
+    const { title, code, description, icon, status } = req.body;
+    const userId = req.user?.id || null;
+    if (!title) return res.status(400).json({ success: false, message: 'El título es obligatorio' });
 
     const resDb = await query(
-      `INSERT INTO qms.departments (name, code) VALUES ($1, $2) RETURNING *`,
-      [name, code || null]
+      `INSERT INTO qms.departments (title, code, description, icon, status, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [title, code || null, description || null, icon || null, status !== undefined ? status : true, userId]
     );
     return res.status(201).json({ success: true, department: resDb.rows[0] });
   } catch (error) {
@@ -45,12 +46,13 @@ router.post('/', authenticateToken, requirePermission('departments:create'), asy
 router.put('/:id', authenticateToken, requirePermission('departments:update'), async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, code } = req.body;
-    if (!name) return res.status(400).json({ success: false, message: 'El nombre es obligatorio' });
+    const { title, code, description, icon, status } = req.body;
+    const userId = req.user?.id || null;
+    if (!title) return res.status(400).json({ success: false, message: 'El título es obligatorio' });
 
     const resDb = await query(
-      `UPDATE qms.departments SET name = $1, code = $2 WHERE id = $3 RETURNING *`,
-      [name, code || null, id]
+      `UPDATE qms.departments SET title = $1, code = $2, description = $3, icon = $4, status = $5, updated_by = $6, updated_at = NOW() WHERE id = $7 RETURNING *`,
+      [title, code || null, description || null, icon || null, status !== undefined ? status : true, userId, id]
     );
 
     if (resDb.rows.length === 0) {
@@ -81,13 +83,13 @@ router.delete('/:id', authenticateToken, requirePermission('departments:delete')
       });
     }
 
-    const resDb = await query(`DELETE FROM qms.departments WHERE id = $1 RETURNING id`, [id]);
+    const resDb = await query(`UPDATE qms.departments SET status = false WHERE id = $1 RETURNING id`, [id]);
     
     if (resDb.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Departamento no encontrado' });
     }
 
-    return res.json({ success: true, message: 'Departamento eliminado correctamente' });
+    return res.json({ success: true, message: 'Departamento inhabilitado correctamente' });
   } catch (error) {
     console.error('Error al eliminar departamento:', error.message);
     return res.status(500).json({ success: false, message: 'Error al eliminar departamento' });

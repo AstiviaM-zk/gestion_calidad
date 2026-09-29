@@ -266,7 +266,7 @@ export async function loginFormUser({ email, password }) {
 export async function getAllUsers() {
   try {
     const res = await query(
-      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
+      `SELECT u.*, r.name as role_name, d.title as department_name, d.code as department_code
        FROM qms.users u 
        LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
        LEFT JOIN qms.departments d ON u.department_id = d.id
@@ -310,7 +310,7 @@ export async function getUserByEmail(email) {
   if (!email) return null;
   try {
     const res = await query(
-      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
+      `SELECT u.*, r.name as role_name, d.title as department_name, d.code as department_code
        FROM qms.users u 
        LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
        LEFT JOIN qms.departments d ON u.department_id = d.id
@@ -337,7 +337,7 @@ export async function getUserById(id) {
   if (!id) return null;
   try {
     const res = await query(
-      `SELECT u.*, r.name as role_name, d.name as department_name, d.code as department_code
+      `SELECT u.*, r.name as role_name, d.title as department_name, d.code as department_code
        FROM qms.users u 
        LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
        LEFT JOIN qms.departments d ON u.department_id = d.id
@@ -363,7 +363,7 @@ export async function getUserById(id) {
 export async function getAllDepartments() {
   try {
     const res = await query(
-      `SELECT id, name, code FROM qms.departments ORDER BY name ASC`
+      `SELECT id, title, code, description, icon, status FROM qms.departments ORDER BY title ASC`
     );
     return res.rows;
   } catch (err) {

@@ -18,7 +18,7 @@
           @click="$emit('update:showInactive', !showInactive)"
           title="Alternar visibilidad de inactivos"
         >
-          <i class="fa-solid fa-users-slash"></i> Mostrar Inactivos
+          <i class="fa-solid fa-users-slash"></i> Ver Inactivos
         </button>
 
         <!-- Filtro por Rol -->
@@ -156,7 +156,7 @@
               <p v-if="searchQuery || selectedRoleFilter">No se encontraron usuarios con los filtros aplicados.</p>
               <p v-else>No se encontraron usuarios activos en el sistema.</p>
               <span class="text-sm text-subtle" v-if="searchQuery || selectedRoleFilter">Intenta limpiar el cuadro de búsqueda o cambiar el filtro de rol.</span>
-              <span class="text-sm text-subtle" v-else>Los usuarios registrados con estado activo aparecerán aquí. (Usa el botón "Mostrar Inactivos" para incluirlos)</span>
+              <span class="text-sm text-subtle" v-else>Los usuarios registrados con estado activo aparecerán aquí. (Usa el botón "Ver Inactivos" para incluirlos)</span>
             </td>
           </tr>
         </tbody>
