@@ -28,6 +28,11 @@ const routes = [
         component: () => import('../views/DashboardOverviewView.vue')
       },
       {
+        path: 'department-categories',
+        name: 'department-categories',
+        component: () => import('../views/DepartmentCategoriesView.vue')
+      },
+      {
         path: 'departments',
         name: 'dashboard-departments',
         component: () => import('../components/departments/DepartmentManager.vue'),

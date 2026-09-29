@@ -94,9 +94,8 @@ onMounted(() => {
 
 function openDepartment(dept) {
   if (!dept.status) return;
-  // TODO: Navigate to the department's documents view
-  // router.push(`/dashboard/departments/${dept.id}/documents`);
-  console.log('Open department:', dept);
+  userStore.selectDepartment(dept.id);
+  router.push('/dashboard/department-categories');
 }
 </script>
 
@@ -188,6 +187,9 @@ function openDepartment(dept) {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
   padding-bottom: 20px;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px; /* For scrollbar */
 }
 
 .dept-card {
@@ -314,12 +316,14 @@ function openDepartment(dept) {
 }
 
 .empty-state {
+  flex: 1;
   padding: 80px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   color: #64748b;
+  overflow-y: auto;
 }
 
 .empty-icon {
