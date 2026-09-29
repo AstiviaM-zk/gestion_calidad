@@ -134,7 +134,7 @@ const authStore = useAuthStore();
 
 const isSubmitting = ref(false);
 const isEdit = computed(() => !!props.role);
-const canDelete = computed(() => authStore.hasPermission('roles:delete'));
+const canDelete = computed(() => authStore.hasPermission('roles:update') || authStore.user?.role === 'admin_sgc');
 
 const selectedUserToAdd = ref(null);
 

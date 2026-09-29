@@ -48,7 +48,7 @@ const roleStore = useRoleStore();
 const user = computed(() => authStore.user);
 const userRole = computed(() => user.value?.role || 'operator');
 
-const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
+const canReadDocuments = computed(() => authStore.hasPermission('documents:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
 const canReadDepartments = computed(() => authStore.hasPermission('departments:read'));

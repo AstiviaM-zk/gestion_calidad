@@ -28,10 +28,9 @@ async function initDb() {
         password_hash TEXT,
         avatar_url TEXT,
         id_role BIGINT DEFAULT 3,
-        is_active BOOLEAN DEFAULT TRUE,
+        status BOOLEAN DEFAULT TRUE,
         google_login_enabled BOOLEAN DEFAULT FALSE,
-        last_login TIMESTAMPTZ,
-        created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        last_login TIMESTAMPTZ
       );
     `);
     await query(`ALTER TABLE qms.users ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ;`);
@@ -86,8 +85,8 @@ export async function getPermissionsForUserRole(idRole, roleCode) {
   try {
     const resJoined = await query(
       `SELECT p.* 
-       FROM qms.role_permissions rp
-       JOIN qms.permissions p ON rp.id_permission = p.id
+       FROM qms.roles_permissions rp
+       JOIN qms.permissions p ON rp.id_perm = p.id
        WHERE CAST(rp.id_role AS text) = CAST($1 AS text)`,
       [idRole]
     );
@@ -97,7 +96,7 @@ export async function getPermissionsForUserRole(idRole, roleCode) {
         .filter(Boolean);
     }
   } catch (err) {
-    console.warn('⚠️ Error al consultar qms.role_permissions:', err.message);
+    console.warn('⚠️ Error al consultar qms.roles_permissions:', err.message);
   }
 
   return [];
@@ -126,12 +125,12 @@ function mapRowToUser(row) {
     departmentId: row.department_id || null,
     departmentName: deptName,
     permissions: userPermissions,
-    isActive: row.is_active !== false,
-    status: row.is_active === false ? 'Inactivo' : 'Activo',
+    isActive: row.status !== false,
+    status: row.status === false ? 'Inactivo' : 'Activo',
     googleLoginEnabled: !!row.google_login_enabled,
     hasPassword: !!(row.password_hash && row.password_hash.trim().length > 0),
     lastLogin: row.last_login || null,
-    createdAt: row.created_at
+    createdAt: row.created_at || null
   };
 }
 
@@ -169,7 +168,7 @@ export async function upsertUserFromGoogle(googleUser) {
 
     await query(
       `INSERT INTO qms.users 
-       (google_id, full_name, email, avatar_url, id_role, is_active, google_login_enabled, last_login)
+       (google_id, full_name, email, avatar_url, id_role, status, google_login_enabled, last_login)
        VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, CURRENT_TIMESTAMP)`,
       [
         googleUser.googleId,
@@ -209,7 +208,7 @@ export async function registerFormUser({ name, email, password }) {
 
   await query(
     `INSERT INTO qms.users 
-     (google_id, full_name, email, password_hash, avatar_url, id_role, is_active, google_login_enabled, last_login)
+     (google_id, full_name, email, password_hash, avatar_url, id_role, status, google_login_enabled, last_login)
      VALUES (NULL, $1, $2, $3, $4, $5, TRUE, FALSE, CURRENT_TIMESTAMP)`,
     [
       sanitizedName,
@@ -234,7 +233,7 @@ export async function loginFormUser({ email, password }) {
   }
 
   const userRow = res.rows[0];
-  if (userRow.is_active === false) {
+  if (userRow.status === false) {
     throw new Error('Tu cuenta se encuentra inactiva. Contacta al administrador del sistema.');
   }
 
@@ -270,7 +269,7 @@ export async function getAllUsers() {
        FROM qms.users u 
        LEFT JOIN qms.roles r ON CAST(u.id_role AS text) = CAST(r.id AS text) 
        LEFT JOIN qms.departments d ON u.department_id = d.id
-       ORDER BY u.created_at DESC`
+       ORDER BY u.id DESC`
     );
     const users = await Promise.all(res.rows.map(async (userRow) => {
       const userRole = resolveRoleName(userRow);
@@ -377,10 +376,10 @@ export async function getAllDepartments() {
  */
 export async function updateUser(id, userData) {
   try {
-    const { full_name, name, role, department_id, departmentId, is_active, isActive } = userData;
+    const { full_name, name, role, department_id, departmentId, is_active, isActive, status } = userData;
     const nameToUse = full_name || name;
     const deptIdToUse = department_id !== undefined ? department_id : departmentId;
-    const isActiveToUse = is_active !== undefined ? is_active : isActive;
+    const isActiveToUse = is_active !== undefined ? is_active : (isActive !== undefined ? isActive : status);
 
     const updates = [];
     const values = [];
@@ -413,7 +412,7 @@ export async function updateUser(id, userData) {
     }
 
     if (isActiveToUse !== undefined && isActiveToUse !== null) {
-      updates.push(`is_active = $${paramIdx++}`);
+      updates.push(`status = $${paramIdx++}`);
       values.push(Boolean(isActiveToUse));
     }
 
