@@ -16,6 +16,7 @@ import documentsRouter from "./src/routes/documents.js";
 import rolesRouter from "./src/routes/roles.js";
 import usersRouter from "./src/routes/users.js";
 import departmentsRouter from "./src/routes/departments.js";
+import categoriesRouter from "./src/routes/categories.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +33,7 @@ app.use("/api", documentsRouter);
 app.use("/api", rolesRouter);
 app.use("/api", usersRouter);
 app.use("/api/departments", departmentsRouter);
+app.use("/api/categories", categoriesRouter);
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Servidor QMS Backend activo (Vite + Vue 3)", timestamp: new Date() });

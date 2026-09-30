@@ -18,6 +18,15 @@
   </button>
 
   <button 
+    v-if="canManageCategories"
+    :class="['nav-item', 'nav-submenu', { active: isTabActive('/dashboard/categories') }]"
+    @click="navigate('/dashboard/categories')"
+  >
+    <i class="fa-solid fa-folder-tree"></i>
+    <span>Categorías</span>
+  </button>
+
+  <button 
     v-if="canReadDocuments"
     :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
     @click="navigate('/dashboard/documents')"
@@ -61,6 +70,7 @@ const documentStore = useDocumentStore();
 const canReadDocuments = computed(() => authStore.hasPermission('documents:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
+const canManageCategories = computed(() => authStore.hasPermission('categories:manage'));
 
 const documentsCount = computed(() => documentStore.documents.length);
 
@@ -124,4 +134,9 @@ function navigate(path) {
   color: #ffffff;
 }
 
+.nav-submenu {
+  padding-left: 36px;
+  font-size: 12.5px;
+  margin-top: -4px;
+}
 </style>
