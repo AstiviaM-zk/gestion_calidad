@@ -43,36 +43,21 @@ async function initDb() {
 initDb();
 
 /**
- * Resuelve el nombre del rol a partir de role_name o del campo FK id_role (1=admin_sgc, 2=leader, 3=operator, 4=auditor)
+ * Mapea el nombre del rol al ID numérico en la tabla qms.roles consultando a la base de datos
  */
-function resolveRoleName(row) {
-  if (row.role_name) return row.role_name;
-  if (row.role && typeof row.role === 'string' && isNaN(row.role)) return row.role;
-
-  const roleIdStr = String(row.id_role !== undefined && row.id_role !== null ? row.id_role : (row.role || ''));
-  switch (roleIdStr) {
-    case '1': return 'admin_sgc';
-    case '2': return 'leader';
-    case '3': return 'operator';
-    case '4': return 'auditor';
-    default: return 'operator';
-  }
-}
-
-/**
- * Mapea el nombre del rol al ID numérico en la tabla qms.roles
- */
-function getRoleIdByName(roleName) {
+async function getRoleIdByName(roleName) {
   if (!roleName) return 3;
   if (!isNaN(roleName)) return parseInt(roleName, 10);
-  switch (roleName.toLowerCase().trim()) {
-    case 'admin_sgc':
-    case 'admin': return 1;
-    case 'leader': return 2;
-    case 'operator': return 3;
-    case 'auditor': return 4;
-    default: return 3;
+  
+  try {
+    const res = await query('SELECT id FROM qms.roles WHERE LOWER(name) = $1 OR LOWER(name) = $2 LIMIT 1', [roleName.toLowerCase().trim(), roleName.toLowerCase().trim() === 'admin' ? 'admin_sgc' : roleName.toLowerCase().trim()]);
+    if (res.rows.length > 0) {
+      return res.rows[0].id;
+    }
+  } catch (err) {
+    console.error('Error al obtener el ID del rol por nombre:', err.message);
   }
+  return 3;
 }
 
 /**
@@ -108,7 +93,7 @@ export async function getPermissionsForUserRole(idRole, roleCode) {
 function mapRowToUser(row) {
   const nameVal = row.full_name || '';
   const avatarVal = row.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(nameVal || 'Usuario')}&background=1e3a8a&color=fff`;
-  const userRole = resolveRoleName(row);
+  const userRole = row.role_name || (row.role && typeof row.role === 'string' && isNaN(row.role) ? row.role : 'operator');
   const deptName = row.department_name || (row.department_id ? `Depto. #${row.department_id}` : 'General');
   const userPermissions = Array.isArray(row.permissions) ? row.permissions : [];
 
@@ -121,7 +106,7 @@ function mapRowToUser(row) {
     email: row.email,
     picture: avatarVal,
     role: userRole,
-    idRole: row.id_role || getRoleIdByName(userRole),
+    idRole: row.id_role || 3,
     departmentId: row.department_id || null,
     departmentName: deptName,
     permissions: userPermissions,
@@ -164,7 +149,7 @@ export async function upsertUserFromGoogle(googleUser) {
     const countRes = await query('SELECT COUNT(*) FROM qms.users');
     const userCount = parseInt(countRes.rows[0].count, 10);
     const roleName = userCount === 0 ? 'admin_sgc' : 'operator';
-    const roleId = getRoleIdByName(roleName);
+    const roleId = await getRoleIdByName(roleName);
 
     await query(
       `INSERT INTO qms.users 
@@ -204,7 +189,7 @@ export async function registerFormUser({ name, email, password }) {
   const countRes = await query('SELECT COUNT(*) FROM qms.users');
   const userCount = parseInt(countRes.rows[0].count, 10);
   const roleName = userCount === 0 ? 'admin_sgc' : 'operator';
-  const roleId = getRoleIdByName(roleName);
+  const roleId = await getRoleIdByName(roleName);
 
   await query(
     `INSERT INTO qms.users 
@@ -272,7 +257,7 @@ export async function getAllUsers() {
        ORDER BY u.id DESC`
     );
     const users = await Promise.all(res.rows.map(async (userRow) => {
-      const userRole = resolveRoleName(userRow);
+      const userRole = userRow.role_name || (userRow.role && typeof userRow.role === 'string' && isNaN(userRow.role) ? userRow.role : 'operator');
       const permissions = await getPermissionsForUserRole(userRow.id_role, userRole);
       return mapRowToUser({ ...userRow, permissions });
     }));
@@ -288,7 +273,7 @@ export async function getAllUsers() {
  */
 export async function updateUserRole(email, newRole) {
   try {
-    const roleId = getRoleIdByName(newRole);
+    const roleId = await getRoleIdByName(newRole);
     await query(
       `UPDATE qms.users 
        SET id_role = $1 
@@ -318,7 +303,7 @@ export async function getUserByEmail(email) {
     );
     if (res.rows.length > 0) {
       const userRow = res.rows[0];
-      const userRole = resolveRoleName(userRow);
+      const userRole = userRow.role_name || (userRow.role && typeof userRow.role === 'string' && isNaN(userRow.role) ? userRow.role : 'operator');
       const permissions = await getPermissionsForUserRole(userRow.id_role, userRole);
       return mapRowToUser({ ...userRow, permissions });
     }
@@ -345,7 +330,7 @@ export async function getUserById(id) {
     );
     if (res.rows.length > 0) {
       const userRow = res.rows[0];
-      const userRole = resolveRoleName(userRow);
+      const userRole = userRow.role_name || (userRow.role && typeof userRow.role === 'string' && isNaN(userRow.role) ? userRow.role : 'operator');
       const permissions = await getPermissionsForUserRole(userRow.id_role, userRole);
       return mapRowToUser({ ...userRow, permissions });
     }
@@ -394,7 +379,7 @@ export async function updateUser(id, userData) {
     }
 
     if (role !== undefined && role !== null) {
-      const roleId = getRoleIdByName(role);
+      const roleId = await getRoleIdByName(role);
       updates.push(`id_role = $${paramIdx++}`);
       values.push(roleId);
     }

@@ -35,8 +35,7 @@ const routes = [
       {
         path: 'departments',
         name: 'dashboard-departments',
-        component: () => import('../components/departments/DepartmentManager.vue'),
-        meta: { requiredPermission: 'departments:read' }
+        component: () => import('../components/departments/DepartmentManager.vue')
       },
       {
         path: 'documents',

@@ -7,11 +7,19 @@
     </div>
 
     <div class="page-title-box">
-      <h2 class="page-title">
-        <i :class="department?.icon || 'fa-solid fa-building'"></i> 
-        Categorías de {{ department ? department.title : 'Departamento' }}
-      </h2>
-      <p class="page-subtitle">Explora los formatos, instructivos y evidencias del área.</p>
+      <div class="title-with-actions">
+        <div>
+          <h2 class="page-title">
+            <i :class="department?.icon || 'fa-solid fa-building'"></i> 
+            Categorías de {{ department ? department.title : 'Departamento' }}
+          </h2>
+          <p class="page-subtitle">Explora los formatos, instructivos y evidencias del área.</p>
+        </div>
+        
+        <button v-if="canManage" class="btn btn-primary btn-sm" @click="createCategory">
+          <i class="fa-solid fa-plus"></i> Nueva
+        </button>
+      </div>
     </div>
 
     <div class="categories-grid" v-if="!isLoading && categories.length > 0">
@@ -26,7 +34,10 @@
         </div>
         <div class="cat-content">
           <h4 class="cat-title">{{ cat.name }}</h4>
-          <span class="cat-code" v-if="cat.code">{{ cat.code }}</span>
+          <div class="cat-meta">
+            <span class="cat-code" v-if="cat.code">{{ cat.code }}</span>
+            <span class="cat-docs-count"><i class="fa-regular fa-file-lines"></i> Documentos: {{ cat.documents_count || 0 }}</span>
+          </div>
         </div>
         <div class="cat-badges">
           <span v-if="cat.is_restricted" class="badge-restricted" title="Acceso Restringido">
@@ -35,6 +46,14 @@
           <span v-if="cat.is_base" class="badge-base" title="Categoría Base del Sistema">
             <i class="fa-solid fa-star"></i>
           </span>
+        </div>
+        <div v-if="canManage" class="card-actions" @click.stop>
+          <button class="icon-btn edit-btn" @click="editCategory(cat)" title="Editar">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="icon-btn delete-btn" @click="deleteCategory(cat)" title="Eliminar">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -55,11 +74,15 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../stores/users';
+import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const authStore = useAuthStore();
+
+const canManage = computed(() => authStore.hasPermission('categories:manage') || authStore.user?.role === 'admin_sgc');
 
 const departmentId = computed(() => userStore.selectedDepartmentId);
 const department = computed(() => userStore.departments.find(d => d.id === departmentId.value));
@@ -99,6 +122,18 @@ function openCategory(cat) {
   // TODO: Navigate to category documents view
   // router.push(`/dashboard/departments/${departmentId.value}/categories/${cat.id}`);
   console.log('Open category:', cat);
+}
+
+function createCategory() {
+  console.log('Crear categoría (TODO)');
+}
+
+function editCategory(cat) {
+  console.log('Editar categoría (TODO):', cat);
+}
+
+function deleteCategory(cat) {
+  console.log('Eliminar categoría (TODO):', cat);
 }
 </script>
 
@@ -147,6 +182,13 @@ function openCategory(cat) {
   margin-bottom: 24px;
 }
 
+.title-with-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
 .page-title {
   font-family: var(--font-heading);
   font-size: 22px;
@@ -171,13 +213,15 @@ function openCategory(cat) {
   flex: 1;
   overflow-y: auto;
   padding-right: 8px;
+  align-items: flex-start;
+  align-content: flex-start;
 }
 
 .category-card {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 20px;
+  gap: 12px;
+  padding: 12px 16px;
   border-radius: 12px;
   background: #ffffff;
   border: 1px solid var(--border-light, #e2e8f0);
@@ -192,15 +236,15 @@ function openCategory(cat) {
 }
 
 .cat-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   background: #f1f5f9;
   color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 16px;
   flex-shrink: 0;
 }
 
@@ -214,13 +258,19 @@ function openCategory(cat) {
 }
 
 .cat-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
   margin: 0 0 4px 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.cat-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .cat-code {
@@ -233,9 +283,18 @@ function openCategory(cat) {
   display: inline-block;
 }
 
+.cat-docs-count {
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .cat-badges {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
 }
 
@@ -261,6 +320,42 @@ function openCategory(cat) {
   align-items: center;
   justify-content: center;
   font-size: 10px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 12px;
+}
+
+.edit-btn {
+  color: var(--primary, #1e3a8a);
+}
+
+.edit-btn:hover {
+  background: rgba(30, 58, 138, 0.08);
+}
+
+.delete-btn {
+  color: #ef4444;
+}
+
+.delete-btn:hover {
+  background: #fef2f2;
 }
 
 .empty-state, .loading-state {

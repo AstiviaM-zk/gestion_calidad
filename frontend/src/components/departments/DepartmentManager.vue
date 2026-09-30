@@ -9,7 +9,7 @@
               <i class="fa-solid fa-layer-group"></i> {{ filteredDepartments.length }}
             </span>
           </div>
-          <p class="section-subtitle">Administra los departamentos y áreas de la organización</p>
+          <p class="section-subtitle">Selecciona un departamento para explorar o administrarlos si tienes permisos.</p>
         </div>
         
         <div class="header-actions">
@@ -29,60 +29,67 @@
         </div>
       </div>
 
-      <div class="table-responsive">
-        <table class="qms-table">
-          <thead>
-            <tr>
-              <th>Departamento</th>
-              <th>Código</th>
-              <th>Descripción</th>
-              <th>Estado</th>
-              <th v-if="canManage" class="actions-col">Acciones</th>
-            </tr>
-          </thead>
-          <tbody v-if="filteredDepartments.length > 0">
-            <tr v-for="dept in filteredDepartments" :key="dept.id" :class="{'inactive-row': !dept.status}">
-              <td>
-                <div class="dept-info-cell">
-                  <div class="dept-icon-mini" :class="{ 'inactive': !dept.status }">
-                    <i :class="dept.icon || 'fa-solid fa-building'"></i>
-                  </div>
-                  <span class="dept-name">{{ dept.title }}</span>
-                </div>
-              </td>
-              <td>
-                <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
-                <span v-else class="text-muted">-</span>
-              </td>
-              <td class="desc-cell">
-                <span v-if="dept.description" class="truncate-text" :title="dept.description">{{ dept.description }}</span>
-                <span v-else class="text-muted italic">Sin descripción</span>
-              </td>
-              <td>
-                <span v-if="dept.status === true" class="status-badge active">Activo</span>
-                <span v-else class="status-badge inactive">Inactivo</span>
-              </td>
-              <td v-if="canManage" class="actions-cell">
-                <button type="button" class="icon-btn edit-btn" @click="openEditModal(dept)" title="Editar">
-                  <i class="fa-solid fa-pen"></i>
-                </button>
-                <button type="button" class="icon-btn delete-btn" v-if="dept.status === true" @click="confirmDelete(dept)" title="Inhabilitar">
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-              </td>
-            </tr>
-          </tbody>
-          <tbody v-else>
-            <tr>
-              <td :colspan="canManage ? 5 : 4" class="empty-cell">
-                <div class="empty-state-mini">
-                  <i class="fa-solid fa-building-circle-xmark"></i>
-                  <p>No se encontraron departamentos.</p>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Skeleton Loader -->
+      <div class="departments-grid" v-if="userStore.isLoadingDepartments">
+        <div v-for="i in 6" :key="i" class="dept-card skeleton-card">
+          <div class="dept-card-header">
+            <div class="skeleton-icon"></div>
+          </div>
+          <div class="dept-card-body">
+            <div class="skeleton-title"></div>
+            <div class="skeleton-desc line-1"></div>
+            <div class="skeleton-desc line-2"></div>
+          </div>
+          <div class="dept-card-footer">
+            <div class="skeleton-badge"></div>
+            <div class="skeleton-badge-status"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="departments-grid" v-else-if="filteredDepartments.length > 0">
+        <div 
+          v-for="dept in filteredDepartments" 
+          :key="dept.id" 
+          class="dept-card" 
+          :class="{ 'inactive-card': !dept.status }" 
+          @click="openDepartment(dept)"
+        >
+          <div class="dept-card-header">
+            <div class="dept-icon-wrapper" :class="{ 'inactive': !dept.status }">
+              <i :class="dept.icon || 'fa-solid fa-building'"></i>
+            </div>
+            
+            <div v-if="canManage" class="card-actions" @click.stop>
+              <button type="button" class="icon-btn edit-btn" @click="openEditModal(dept)" title="Editar">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button type="button" class="icon-btn delete-btn" v-if="dept.status === true" @click="confirmDelete(dept)" title="Inhabilitar">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          
+          <div class="dept-card-body">
+            <h4 class="dept-title">{{ dept.title }}</h4>
+            <p class="dept-description" v-if="dept.description">{{ dept.description }}</p>
+            <p class="dept-description empty-desc" v-else>Sin descripción</p>
+          </div>
+          
+          <div class="dept-card-footer">
+            <span class="badge-code" v-if="dept.code">{{ dept.code }}</span>
+            <span v-else></span>
+            <span v-if="dept.status === true" class="badge-active">Activo</span>
+            <span v-else class="badge-inactive">Inactivo</span>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="empty-state">
+        <i class="fa-solid fa-building-circle-xmark empty-icon" v-if="!searchQuery"></i>
+        <i class="fa-solid fa-magnifying-glass empty-icon" v-else></i>
+        <p v-if="!searchQuery">No hay departamentos disponibles.</p>
+        <p v-else>No se encontraron departamentos con la búsqueda "{{ searchQuery }}".</p>
       </div>
     </div>
 
@@ -104,12 +111,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useUserStore } from '../../stores/users';
 import { useAuthStore } from '../../stores/auth';
 import { showToast } from '../../utils/toast';
 import DepartmentModal from './DepartmentModal.vue';
 import ConfirmModal from '../ConfirmModal.vue';
 
+const router = useRouter();
 const userStore = useUserStore();
 const authStore = useAuthStore();
 
@@ -138,6 +147,12 @@ onMounted(() => {
     userStore.fetchDepartments();
   }
 });
+
+function openDepartment(dept) {
+  if (!dept.status) return;
+  userStore.selectDepartment(dept.id);
+  router.push('/dashboard/department-categories');
+}
 
 function openCreateModal() {
   form.value = { id: null, title: '', code: '', description: '', icon: '', status: true };
@@ -190,7 +205,7 @@ async function proceedDelete() {
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 0; /* needed for flex children to shrink */
+  min-height: 0; 
 }
 
 .title-with-badge {
@@ -253,148 +268,73 @@ async function proceedDelete() {
   box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.12);
 }
 
-.table-responsive {
-  width: 100%;
+.departments-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 20px;
   flex: 1;
   overflow-y: auto;
-  overflow-x: auto;
-  border-radius: 8px;
-  border: 1px solid var(--border-light, #e2e8f0);
 }
 
-.qms-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.qms-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  background: #fff;
-}
-
-.qms-table th {
-  background: #f8fafc;
-  padding: 12px 16px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted, #64748b);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 2px solid var(--border-light, #e2e8f0);
-}
-
-.qms-table td {
-  padding: 12px 16px;
-  font-size: 14px;
-  border-bottom: 1px solid var(--border-light, #e2e8f0);
-  color: var(--text-main, #1e293b);
-  vertical-align: middle;
-}
-
-.qms-table tr:hover {
-  background-color: #f8fafc;
-}
-
-.inactive-row {
-  background-color: #fcfcfc;
-}
-.inactive-row td {
-  color: var(--text-muted, #94a3b8);
-}
-
-.dept-info-cell {
+.dept-card {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  padding: 24px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border-light, #e2e8f0);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+  cursor: pointer;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
 }
 
-.dept-icon-mini {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+.dept-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-color: var(--primary);
+}
+
+.inactive-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.inactive-card:hover {
+  transform: none;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border-color: #e2e8f0;
+}
+
+.dept-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.dept-icon-wrapper {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
   background: rgba(30, 58, 138, 0.08);
   color: var(--primary, #1e3a8a);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 24px;
 }
 
-.dept-icon-mini.inactive {
+.dept-icon-wrapper.inactive {
   background: #f1f5f9;
   color: #94a3b8;
 }
 
-.dept-name {
-  font-weight: 600;
-}
-
-.badge-code {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #475569;
-  white-space: nowrap;
-}
-
-.desc-cell {
-  max-width: 300px;
-}
-
-.truncate-text {
-  display: block;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: #64748b;
-  font-size: 13px;
-}
-
-.italic {
-  font-style: italic;
-}
-
-.text-muted {
-  color: #94a3b8;
-}
-
-.status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.status-badge.active {
-  background: #f0fdf4;
-  color: #166534;
-  border: 1px solid #bbf7d0;
-}
-
-.status-badge.inactive {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
-}
-
-.actions-col {
-  width: 100px;
-  text-align: center;
-}
-
-.actions-cell {
+.card-actions {
   display: flex;
-  gap: 8px;
-  justify-content: center;
+  gap: 4px;
 }
 
 .icon-btn {
@@ -425,21 +365,138 @@ async function proceedDelete() {
   background: #fef2f2;
 }
 
-.empty-cell {
-  padding: 40px !important;
+.dept-card-body {
+  flex-grow: 1;
+  margin-bottom: 20px;
 }
 
-.empty-state-mini {
+.dept-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 8px 0;
+}
+
+.dept-description {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.empty-desc {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.dept-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.badge-code {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+}
+
+.badge-active {
+  background: #75ba21;
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-inactive {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.empty-state {
+  flex: 1;
+  padding: 80px 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
-  gap: 12px;
+  color: #64748b;
+  overflow-y: auto;
 }
 
-.empty-state-mini i {
-  font-size: 32px;
+.empty-icon {
+  font-size: 64px;
   color: #cbd5e1;
+  margin-bottom: 20px;
+}
+
+/* Skeleton Loader */
+.skeleton-card {
+  pointer-events: none;
+}
+
+.skeleton-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #e2e8f0;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-title {
+  height: 20px;
+  width: 70%;
+  background: #e2e8f0;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-desc {
+  height: 12px;
+  background: #f1f5f9;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-desc.line-1 { width: 100%; }
+.skeleton-desc.line-2 { width: 85%; }
+
+.skeleton-badge, .skeleton-badge-status {
+  height: 24px;
+  background: #e2e8f0;
+  border-radius: 12px;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-badge { width: 50px; }
+.skeleton-badge-status { width: 60px; }
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 0.3; }
+  100% { opacity: 0.6; }
 }
 </style>
