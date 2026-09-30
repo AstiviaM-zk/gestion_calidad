@@ -10,6 +10,14 @@
   </button>
 
   <button 
+    :class="['nav-item', { active: isTabActive('/dashboard/departments') }]"
+    @click="navigate('/dashboard/departments')"
+  >
+    <i class="fa-solid fa-building"></i>
+    <span>Departamentos</span>
+  </button>
+
+  <button 
     v-if="canReadDocuments"
     :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
     @click="navigate('/dashboard/documents')"
@@ -18,16 +26,7 @@
     <span>Documentos</span>
   </button>
 
-  <div class="nav-section-title" v-if="canReadDepartments || canReadUsers || canReadRoles">Administración</div>
-
-  <button 
-    v-if="canReadDepartments"
-    :class="['nav-item', { active: isTabActive('/dashboard/departments') }]"
-    @click="navigate('/dashboard/departments')"
-  >
-    <i class="fa-solid fa-building"></i>
-    <span>Departamentos</span>
-  </button>
+  <div class="nav-section-title" v-if="canReadUsers || canReadRoles">Administración</div>
 
   <button 
     v-if="canReadUsers"
@@ -62,7 +61,6 @@ const documentStore = useDocumentStore();
 const canReadDocuments = computed(() => authStore.hasPermission('documents:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
-const canReadDepartments = computed(() => authStore.hasPermission('departments:read'));
 
 const documentsCount = computed(() => documentStore.documents.length);
 

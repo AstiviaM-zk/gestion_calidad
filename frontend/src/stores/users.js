@@ -7,6 +7,7 @@ export const useUserStore = defineStore('users', {
     departments: [],
     selectedDepartmentId: null,
     isLoading: false,
+    isLoadingDepartments: false,
     error: null
   }),
 
@@ -31,6 +32,7 @@ export const useUserStore = defineStore('users', {
     },
 
     async fetchDepartments() {
+      this.isLoadingDepartments = true;
       try {
         const { data } = await api.get('/departments');
         if (data.success) {
@@ -38,6 +40,8 @@ export const useUserStore = defineStore('users', {
         }
       } catch (err) {
         console.error('Error cargando departamentos:', err);
+      } finally {
+        this.isLoadingDepartments = false;
       }
     },
 

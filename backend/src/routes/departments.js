@@ -26,7 +26,10 @@ router.get('/:id/categories', authenticateToken, requirePermission('documents:re
   try {
     const { id } = req.params;
     const resDb = await query(
-      `SELECT id, name, code, is_restricted, is_base FROM qms.categories WHERE department_id = $1 ORDER BY id ASC`, 
+      `SELECT c.id, c.name, c.code, c.is_restricted, c.is_base,
+              (SELECT COUNT(*) FROM qms.documents d WHERE d.id_category = c.id AND d.id_department = $1 AND d.is_active = true) as documents_count
+       FROM qms.categories c 
+       WHERE c.department_id = $1 ORDER BY c.id ASC`, 
       [id]
     );
     return res.json({ success: true, categories: resDb.rows });
