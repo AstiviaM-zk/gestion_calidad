@@ -30,7 +30,13 @@
       :rows="6"
       @open="openCategory"
       @edit="editCategory"
-      @delete="deleteCategory"
+    />
+
+    <CategoryModal 
+      v-model="isCategoryModalOpen"
+      :departmentId="departmentId"
+      :initialData="editingCategory"
+      @saved="fetchCategories"
     />
   </div>
 </template>
@@ -42,6 +48,7 @@ import { useUserStore } from '../stores/users';
 import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 import CategoryManager from '../components/categories/CategoryManager.vue';
+import CategoryModal from '../components/categories/CategoryModal.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -55,6 +62,9 @@ const department = computed(() => userStore.departments.find(d => d.id === depar
 
 const categories = ref([]);
 const isLoading = ref(true);
+
+const isCategoryModalOpen = ref(false);
+const editingCategory = ref({ id: null, name: '', code: '', is_restricted: false });
 
 onMounted(async () => {
   if (userStore.departments.length === 0) {
@@ -91,15 +101,13 @@ function openCategory(cat) {
 }
 
 function createCategory() {
-  console.log('Crear categoría (TODO)');
+  editingCategory.value = { id: null, name: '', code: '', is_restricted: false };
+  isCategoryModalOpen.value = true;
 }
 
 function editCategory(cat) {
-  console.log('Editar categoría (TODO):', cat);
-}
-
-function deleteCategory(cat) {
-  console.log('Eliminar categoría (TODO):', cat);
+  editingCategory.value = { ...cat };
+  isCategoryModalOpen.value = true;
 }
 </script>
 

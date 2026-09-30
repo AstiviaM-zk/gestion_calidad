@@ -7,7 +7,7 @@
       @click="$emit('open', cat)"
     >
       <div class="cat-icon">
-        <i class="fa-solid fa-folder-open"></i>
+        <i :class="cat.icon || 'fa-solid fa-folder-open'"></i>
       </div>
       <div class="cat-content">
         <h4 class="cat-title">{{ cat.name }}</h4>
@@ -27,9 +27,6 @@
       <div v-if="canManage" class="card-actions" @click.stop>
         <button class="icon-btn edit-btn" @click="$emit('edit', cat)" title="Editar">
           <i class="fa-solid fa-pen"></i>
-        </button>
-        <button class="icon-btn delete-btn" @click="$emit('delete', cat)" title="Eliminar">
-          <i class="fa-solid fa-trash"></i>
         </button>
       </div>
     </div>
@@ -72,7 +69,7 @@ const props = defineProps({
   }
 });
 
-defineEmits(['open', 'edit', 'delete']);
+defineEmits(['open', 'edit']);
 
 const gridStyle = computed(() => {
   return {
@@ -107,9 +104,10 @@ const gridStyle = computed(() => {
 }
 
 .category-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px -3px rgba(0, 0, 0, 0.1);
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.12);
   border-color: var(--primary);
+  background-color: #f8fafc;
 }
 
 .cat-icon {
@@ -227,13 +225,7 @@ const gridStyle = computed(() => {
   background: rgba(30, 58, 138, 0.08);
 }
 
-.delete-btn {
-  color: #ef4444;
-}
 
-.delete-btn:hover {
-  background: #fef2f2;
-}
 
 .empty-state, .loading-state {
   flex: 1;

@@ -7,7 +7,7 @@
       <div class="icon-preview placeholder" v-else>
         <i class="fa-solid fa-icons"></i>
       </div>
-      <span class="icon-name">{{ modelValue || 'Seleccionar Ícono...' }}</span>
+      <span class="icon-name">{{ modelValue ? 'Ícono seleccionado' : 'Seleccionar Ícono...' }}</span>
       <i class="fa-solid fa-chevron-down dropdown-arrow" :class="{ 'open': isOpen }"></i>
     </div>
 
@@ -32,7 +32,6 @@
           class="icon-option"
           :class="{ 'active': modelValue === icon }"
           @click="selectIcon(icon)"
-          :title="icon"
         >
           <i :class="icon"></i>
         </div>
@@ -88,7 +87,11 @@ const availableIcons = [
   'fa-solid fa-headphones', 'fa-solid fa-phone', 'fa-solid fa-envelope',
   'fa-solid fa-comments', 'fa-solid fa-message', 'fa-solid fa-bell',
   'fa-solid fa-calendar', 'fa-solid fa-calendar-days', 'fa-solid fa-clock',
-  'fa-solid fa-stopwatch', 'fa-solid fa-hourglass-half', 'fa-solid fa-compass'
+  'fa-solid fa-stopwatch', 'fa-solid fa-hourglass-half', 'fa-solid fa-compass',
+  'fa-solid fa-triangle-exclamation', 'fa-solid fa-circle-exclamation', 'fa-solid fa-circle-info',
+  'fa-solid fa-circle-question', 'fa-solid fa-circle-xmark', 'fa-solid fa-circle-check',
+  'fa-solid fa-ban', 'fa-solid fa-eye', 'fa-solid fa-eye-slash', 'fa-solid fa-pen', 'fa-solid fa-trash',
+  'fa-solid fa-plus', 'fa-solid fa-minus', 'fa-solid fa-lock-open'
 ];
 
 const filteredIcons = computed(() => {

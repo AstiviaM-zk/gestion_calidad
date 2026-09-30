@@ -29,7 +29,7 @@ router.get('/:id/categories', authenticateToken, requirePermission('documents:re
     const restrictionCondition = canViewRestricted ? '' : ' AND c.is_restricted = false';
 
     const resDb = await query(
-      `SELECT c.id, c.name, c.code, c.is_restricted, c.is_base,
+      `SELECT c.id, c.name, c.code, c.icon, c.is_restricted, c.is_base,
               (SELECT COUNT(*) FROM qms.documents d WHERE d.id_category = c.id AND d.id_department = $1 AND d.is_active = true) as documents_count
        FROM qms.categories c 
        WHERE c.department_id = $1 ${restrictionCondition} 
@@ -40,6 +40,50 @@ router.get('/:id/categories', authenticateToken, requirePermission('documents:re
   } catch (error) {
     console.error('Error al obtener categorías:', error.message);
     return res.status(500).json({ success: false, message: 'Error al obtener categorías' });
+  }
+});
+
+/**
+ * POST /api/departments/:id/categories
+ * Crear categoría en un departamento
+ */
+router.post('/:id/categories', authenticateToken, requirePermission('categories:manage'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, code, icon, is_restricted } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'El nombre es obligatorio' });
+
+    const resDb = await query(
+      `INSERT INTO qms.categories (department_id, name, code, icon, is_restricted) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [id, name, code || null, icon || 'fa-solid fa-folder', is_restricted || false]
+    );
+    return res.status(201).json({ success: true, category: resDb.rows[0] });
+  } catch (error) {
+    console.error('Error al crear categoría:', error.message);
+    return res.status(500).json({ success: false, message: 'Error al crear categoría' });
+  }
+});
+
+/**
+ * PUT /api/departments/:id/categories/:categoryId
+ * Actualizar categoría
+ */
+router.put('/:id/categories/:categoryId', authenticateToken, requirePermission('categories:manage'), async (req, res) => {
+  try {
+    const { id, categoryId } = req.params;
+    const { name, code, icon, is_restricted } = req.body;
+    if (!name) return res.status(400).json({ success: false, message: 'El nombre es obligatorio' });
+
+    const resDb = await query(
+      `UPDATE qms.categories SET name = $1, code = $2, icon = $3, is_restricted = $4 WHERE id = $5 AND department_id = $6 RETURNING *`,
+      [name, code || null, icon || 'fa-solid fa-folder', is_restricted || false, categoryId, id]
+    );
+
+    if (resDb.rows.length === 0) return res.status(404).json({ success: false, message: 'Categoría no encontrada' });
+    return res.json({ success: true, category: resDb.rows[0] });
+  } catch (error) {
+    console.error('Error al actualizar categoría:', error.message);
+    return res.status(500).json({ success: false, message: 'Error al actualizar categoría' });
   }
 });
 
