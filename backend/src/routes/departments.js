@@ -25,11 +25,15 @@ router.get('/', authenticateToken, requirePermission('departments:read'), async 
 router.get('/:id/categories', authenticateToken, requirePermission('documents:read'), async (req, res) => {
   try {
     const { id } = req.params;
+    const canViewRestricted = req.user?.role === 'admin_sgc' || req.user?.role === 'leader';
+    const restrictionCondition = canViewRestricted ? '' : ' AND c.is_restricted = false';
+
     const resDb = await query(
       `SELECT c.id, c.name, c.code, c.is_restricted, c.is_base,
               (SELECT COUNT(*) FROM qms.documents d WHERE d.id_category = c.id AND d.id_department = $1 AND d.is_active = true) as documents_count
        FROM qms.categories c 
-       WHERE c.department_id = $1 ORDER BY c.id ASC`, 
+       WHERE c.department_id = $1 ${restrictionCondition} 
+       ORDER BY c.id ASC`,
       [id]
     );
     return res.json({ success: true, categories: resDb.rows });
@@ -94,18 +98,18 @@ router.put('/:id', authenticateToken, requirePermission('departments:update'), a
 router.delete('/:id', authenticateToken, requirePermission('departments:delete'), async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Verificar si hay usuarios asignados a este departamento antes de eliminar
     const usersRes = await query(`SELECT COUNT(*) FROM qms.users WHERE department_id = $1`, [id]);
     if (parseInt(usersRes.rows[0].count) > 0) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'No se puede eliminar el departamento porque hay usuarios asignados a él.' 
+      return res.status(400).json({
+        success: false,
+        message: 'No se puede eliminar el departamento porque hay usuarios asignados a él.'
       });
     }
 
     const resDb = await query(`UPDATE qms.departments SET status = false WHERE id = $1 RETURNING id`, [id]);
-    
+
     if (resDb.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Departamento no encontrado' });
     }
