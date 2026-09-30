@@ -18,6 +18,14 @@
   </button>
 
   <button 
+    :class="['nav-item', 'nav-submenu', { active: isTabActive('/dashboard/categories') }]"
+    @click="navigate('/dashboard/categories')"
+  >
+    <i class="fa-solid fa-folder-tree"></i>
+    <span>Categorías</span>
+  </button>
+
+  <button 
     v-if="canReadDocuments"
     :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
     @click="navigate('/dashboard/documents')"
@@ -124,4 +132,9 @@ function navigate(path) {
   color: #ffffff;
 }
 
+.nav-submenu {
+  padding-left: 36px;
+  font-size: 12.5px;
+  margin-top: -4px;
+}
 </style>

@@ -32,8 +32,8 @@ router.get('/:id/categories', authenticateToken, requirePermission('documents:re
       `SELECT c.id, c.name, c.code, c.icon, c.is_restricted, c.is_base,
               (SELECT COUNT(*) FROM qms.documents d WHERE d.id_category = c.id AND d.id_department = $1 AND d.is_active = true) as documents_count
        FROM qms.categories c 
-       WHERE c.department_id = $1 ${restrictionCondition} 
-       ORDER BY c.id ASC`,
+       WHERE (c.department_id = $1 OR c.is_base = true) ${restrictionCondition} 
+       ORDER BY c.is_base DESC, c.id ASC`,
       [id]
     );
     return res.json({ success: true, categories: resDb.rows });

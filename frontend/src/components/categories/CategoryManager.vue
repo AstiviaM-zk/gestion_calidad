@@ -20,9 +20,6 @@
         <span v-if="cat.is_restricted" class="badge-restricted" title="Acceso Restringido">
           <i class="fa-solid fa-lock"></i>
         </span>
-        <span v-if="cat.is_base" class="badge-base" title="Categoría Base del Sistema">
-          <i class="fa-solid fa-star"></i>
-        </span>
       </div>
       <div v-if="canManage" class="card-actions" @click.stop>
         <button class="icon-btn edit-btn" @click="$emit('edit', cat)" title="Editar">
