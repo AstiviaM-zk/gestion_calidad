@@ -3,6 +3,8 @@
     <div class="breadcrumb">
       <router-link to="/dashboard/overview" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Inicio</router-link>
       <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+      <router-link to="/dashboard/departments" class="breadcrumb-link"><i class="fa-solid fa-building"></i> Departamentos</router-link>
+      <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
       <span class="breadcrumb-current">{{ department ? department.title : 'Cargando...' }}</span>
     </div>
 
@@ -116,40 +118,6 @@ function editCategory(cat) {
   display: flex;
   flex-direction: column;
   height: 100%;
-}
-
-.breadcrumb {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  margin-bottom: 20px;
-  color: var(--text-muted);
-}
-
-.breadcrumb-link {
-  color: var(--primary);
-  text-decoration: none;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: color 0.2s;
-}
-
-.breadcrumb-link:hover {
-  color: #1e3a8a;
-  text-decoration: underline;
-}
-
-.breadcrumb-separator {
-  font-size: 10px;
-  color: #cbd5e1;
-}
-
-.breadcrumb-current {
-  font-weight: 500;
-  color: var(--text-main);
 }
 
 .page-title-box {

@@ -1,5 +1,11 @@
 <template>
   <div class="global-categories-container">
+    <div class="breadcrumb">
+      <router-link to="/dashboard/overview" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Inicio</router-link>
+      <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Categorías de Sistema</span>
+    </div>
+
     <div class="page-title-box">
       <h2 class="page-title">
         <i class="fa-solid fa-layer-group"></i> 
