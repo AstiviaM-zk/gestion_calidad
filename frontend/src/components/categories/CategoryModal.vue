@@ -15,6 +15,15 @@
               <label class="edit-label">Icono de la Categoría</label>
               <IconSelector v-model="form.icon" />
             </div>
+            <div class="edit-form-group" v-if="!hasDepartmentProp">
+              <label class="edit-label">Departamento</label>
+              <select v-model="form.department_id" class="edit-input">
+                <option :value="null">-- Categoría Base (Sin Departamento) --</option>
+                <option v-for="dep in departments" :key="dep.id" :value="dep.id">
+                  {{ dep.title }}
+                </option>
+              </select>
+            </div>
             <div class="edit-form-group">
               <label class="edit-label">Nombre de la Categoría *</label>
               <input type="text" v-model="form.name" class="edit-input" placeholder="Ej. Procedimientos" required>
@@ -49,29 +58,45 @@ import { ref, computed, watch } from 'vue';
 import api from '../../services/api';
 import IconSelector from '../IconSelector.vue';
 import { showToast } from '../../utils/toast';
+import { useUserStore } from '../../stores/users';
+import { onMounted } from 'vue';
 
 const props = defineProps({
   modelValue: Boolean,
   departmentId: {
-    type: Number,
-    required: true
+    type: [Number, String],
+    default: null
   },
   initialData: {
     type: Object,
-    default: () => ({ id: null, name: '', code: '', icon: 'fa-solid fa-folder', is_restricted: false })
+    default: () => ({ id: null, name: '', code: '', icon: 'fa-solid fa-folder', is_restricted: false, department_id: null })
   }
 });
 
 const emit = defineEmits(['update:modelValue', 'saved']);
 
+const hasDepartmentProp = computed(() => props.departmentId !== null && props.departmentId !== undefined && props.departmentId !== '');
+
+const userStore = useUserStore();
+const departments = computed(() => userStore.departments);
+
+onMounted(async () => {
+  if (departments.value.length === 0) {
+    await userStore.fetchDepartments();
+  }
+});
+
 const isEditing = computed(() => !!props.initialData?.id);
 const isSaving = ref(false);
-const form = ref({ id: null, name: '', code: '', icon: 'fa-solid fa-folder', is_restricted: false });
+const form = ref({ id: null, name: '', code: '', icon: 'fa-solid fa-folder', is_restricted: false, department_id: null });
 
 watch(() => props.modelValue, (newVal) => {
   if (newVal) {
     form.value = { ...props.initialData };
     if (!form.value.icon) form.value.icon = 'fa-solid fa-folder';
+    if (!hasDepartmentProp.value && props.initialData && props.initialData.department_id !== undefined) {
+      form.value.department_id = props.initialData.department_id;
+    }
   }
 });
 
@@ -93,12 +118,24 @@ async function saveCategory() {
     is_restricted: form.value.is_restricted 
   };
   
+  if (!hasDepartmentProp.value) {
+    payload.department_id = form.value.department_id;
+  }
+  
   try {
     let res;
     if (isEditing.value) {
-      res = await api.put(`/departments/${props.departmentId}/categories/${form.value.id}`, payload);
+      if (hasDepartmentProp.value) {
+        res = await api.put(`/departments/${props.departmentId}/categories/${form.value.id}`, payload);
+      } else {
+        res = await api.put(`/categories/${form.value.id}`, payload);
+      }
     } else {
-      res = await api.post(`/departments/${props.departmentId}/categories`, payload);
+      if (hasDepartmentProp.value) {
+        res = await api.post(`/departments/${props.departmentId}/categories`, payload);
+      } else {
+        res = await api.post(`/categories`, payload);
+      }
     }
     
     if (res.data && res.data.success) {

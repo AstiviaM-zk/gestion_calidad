@@ -54,7 +54,7 @@ router.post('/:id/categories', authenticateToken, requirePermission('categories:
     if (!name) return res.status(400).json({ success: false, message: 'El nombre es obligatorio' });
 
     const resDb = await query(
-      `INSERT INTO qms.categories (department_id, name, code, icon, is_restricted) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      `INSERT INTO qms.categories (department_id, name, code, icon, is_restricted, is_base) VALUES ($1, $2, $3, $4, $5, false) RETURNING *`,
       [id, name, code || null, icon || 'fa-solid fa-folder', is_restricted || false]
     );
     return res.status(201).json({ success: true, category: resDb.rows[0] });
@@ -75,7 +75,7 @@ router.put('/:id/categories/:categoryId', authenticateToken, requirePermission('
     if (!name) return res.status(400).json({ success: false, message: 'El nombre es obligatorio' });
 
     const resDb = await query(
-      `UPDATE qms.categories SET name = $1, code = $2, icon = $3, is_restricted = $4 WHERE id = $5 AND department_id = $6 RETURNING *`,
+      `UPDATE qms.categories SET name = $1, code = $2, icon = $3, is_restricted = $4, is_base = false WHERE id = $5 AND department_id = $6 RETURNING *`,
       [name, code || null, icon || 'fa-solid fa-folder', is_restricted || false, categoryId, id]
     );
 

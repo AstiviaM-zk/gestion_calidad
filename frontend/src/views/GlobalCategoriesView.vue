@@ -5,7 +5,12 @@
         <i class="fa-solid fa-layer-group"></i> 
         Categorías de Sistema
       </h2>
-      <p class="page-subtitle">Explora y filtra las categorías configuradas en todos los departamentos.</p>
+      <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+        <p class="page-subtitle">Explora y filtra las categorías configuradas en todos los departamentos.</p>
+        <button class="btn btn-primary btn-sm" @click="createCategory" v-if="canManage">
+          <i class="fa-solid fa-plus"></i> Nueva Categoría
+        </button>
+      </div>
     </div>
 
     <div class="filters-card glass-card">
@@ -33,10 +38,11 @@
         <CategoryManager 
           :categories="groupedFilteredCategories['global']"
           :isLoading="false"
-          :canManage="false"
+          :canManage="canManage"
           :cols="4"
           :rows="2"
           @open="openCategory"
+          @edit="editCategory"
         />
       </div>
 
@@ -47,10 +53,11 @@
         <CategoryManager 
           :categories="cats"
           :isLoading="false"
-          :canManage="false"
+          :canManage="canManage"
           :cols="4"
           :rows="2"
           @open="openCategory"
+          @edit="editCategory"
         />
       </div>
       
@@ -64,6 +71,12 @@
       <i class="fa-solid fa-spinner fa-spin loading-icon"></i>
       <p>Cargando categorías...</p>
     </div>
+
+    <CategoryModal 
+      v-model="isCategoryModalOpen"
+      :initialData="editingCategory"
+      @saved="fetchAllCategories"
+    />
   </div>
 </template>
 
@@ -71,11 +84,14 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '../stores/users';
+import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 import CategoryManager from '../components/categories/CategoryManager.vue';
+import CategoryModal from '../components/categories/CategoryModal.vue';
 
 const router = useRouter();
 const userStore = useUserStore();
+const authStore = useAuthStore();
 
 const allCategories = ref([]);
 const isLoading = ref(true);
@@ -84,6 +100,10 @@ const selectedDepartment = ref('');
 const searchQuery = ref('');
 
 const departments = computed(() => userStore.departments);
+const canManage = computed(() => authStore.hasPermission('categories:manage'));
+
+const isCategoryModalOpen = ref(false);
+const editingCategory = ref(null);
 
 onMounted(async () => {
   if (departments.value.length === 0) {
@@ -146,6 +166,16 @@ function getDepartmentName(id) {
 function openCategory(cat) {
   // Logic to open category documents view directly from global categories
   console.log('Open from global view', cat);
+}
+
+function createCategory() {
+  editingCategory.value = { id: null, name: '', code: '', is_restricted: false, department_id: null };
+  isCategoryModalOpen.value = true;
+}
+
+function editCategory(cat) {
+  editingCategory.value = { ...cat };
+  isCategoryModalOpen.value = true;
 }
 </script>
 

@@ -18,6 +18,7 @@
   </button>
 
   <button 
+    v-if="canManageCategories"
     :class="['nav-item', 'nav-submenu', { active: isTabActive('/dashboard/categories') }]"
     @click="navigate('/dashboard/categories')"
   >
@@ -69,6 +70,7 @@ const documentStore = useDocumentStore();
 const canReadDocuments = computed(() => authStore.hasPermission('documents:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
+const canManageCategories = computed(() => authStore.hasPermission('categories:manage'));
 
 const documentsCount = computed(() => documentStore.documents.length);
 

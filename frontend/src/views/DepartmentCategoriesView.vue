@@ -34,7 +34,7 @@
 
     <CategoryModal 
       v-model="isCategoryModalOpen"
-      :departmentId="departmentId"
+      :department-id="departmentId"
       :initialData="editingCategory"
       @saved="fetchCategories"
     />

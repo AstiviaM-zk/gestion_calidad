@@ -80,10 +80,10 @@ const gridStyle = computed(() => {
 .categories-grid {
   display: grid;
   gap: 16px;
-  padding-bottom: 20px;
+  padding: 12px 12px 24px 12px; /* Espacio para evitar que se corte la animación hover */
   flex: 1;
   overflow-y: auto;
-  padding-right: 8px;
+  overflow-x: hidden;
   align-items: flex-start;
   align-content: flex-start;
 }
