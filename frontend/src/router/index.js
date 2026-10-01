@@ -38,7 +38,7 @@ const routes = [
         component: () => import('../components/departments/DepartmentManager.vue')
       },
       {
-        path: 'departments/:departmentId/categories/:categoryId/documents',
+        path: 'category-documents',
         name: 'category-documents',
         component: () => import('../views/CategoryDocumentsView.vue'),
       },

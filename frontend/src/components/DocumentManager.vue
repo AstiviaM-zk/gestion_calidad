@@ -69,7 +69,7 @@
             <td><span class="version-badge">{{ doc.version }}</span></td>
             <td>
               <span :class="['status-pill', getStatusClass(doc.status)]">
-                <i :class="getStatusIcon(doc.status)"></i> {{ doc.status }}
+                <i :class="getStatusIcon(doc.status)"></i> {{ getStatusLabel(doc.status) }}
               </span>
             </td>
             <td class="text-subtle text-sm">{{ doc.author }}</td>
@@ -128,9 +128,10 @@ const documentList = computed(() => {
 
 const filters = [
   { label: "Todos", value: "all" },
-  { label: "Aprobados", value: "Aprobado" },
-  { label: "En Revisión", value: "En Revisión" },
-  { label: "Borradores", value: "Borrador" }
+  { label: "Aprobados", value: "approved" },
+  { label: "Pendientes", value: "pending" },
+  { label: "Obsoletos", value: "obsolete" },
+  { label: "Rechazados", value: "rejected" }
 ];
 
 const filteredDocuments = computed(() => {
@@ -153,15 +154,28 @@ function getFileIcon(type) {
 }
 
 function getStatusClass(status) {
-  if (status === "Aprobado") return "status-approved";
-  if (status === "En Revisión") return "status-pending";
-  return "status-draft";
+  if (status === "approved") return "status-approved";
+  if (status === "pending") return "status-pending";
+  if (status === "rejected") return "status-rejected";
+  return "status-draft"; // obsolete or others
 }
 
 function getStatusIcon(status) {
-  if (status === "Aprobado") return "fa-solid fa-circle-check";
-  if (status === "En Revisión") return "fa-solid fa-clock";
+  if (status === "approved") return "fa-solid fa-circle-check";
+  if (status === "pending") return "fa-solid fa-clock";
+  if (status === "rejected") return "fa-solid fa-circle-xmark";
+  if (status === "obsolete") return "fa-solid fa-box-archive";
   return "fa-solid fa-pen";
+}
+
+function getStatusLabel(status) {
+  const map = {
+    'approved': 'Aprobado',
+    'pending': 'Pendiente',
+    'rejected': 'Rechazado',
+    'obsolete': 'Obsoleto'
+  };
+  return map[status] || status;
 }
 
 function viewDoc(doc) { alert("Visualizando: " + doc.title); }

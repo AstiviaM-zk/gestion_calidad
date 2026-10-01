@@ -94,10 +94,12 @@ import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 import CategoryManager from '../components/categories/CategoryManager.vue';
 import CategoryModal from '../components/categories/CategoryModal.vue';
+import { useDocumentStore } from '../stores/documents';
 
 const router = useRouter();
 const userStore = useUserStore();
 const authStore = useAuthStore();
+const documentStore = useDocumentStore();
 
 const allCategories = ref([]);
 const isLoading = ref(true);
@@ -170,8 +172,8 @@ function getDepartmentName(id) {
 }
 
 function openCategory(cat) {
-  const depId = cat.department_id || 'global';
-  router.push(`/dashboard/departments/${depId}/categories/${cat.id}/documents`);
+  documentStore.selectCategoryContext(cat.id, cat.department_id);
+  router.push('/dashboard/category-documents');
 }
 
 function createCategory() {

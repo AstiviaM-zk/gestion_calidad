@@ -5,11 +5,18 @@ export const useDocumentStore = defineStore('documents', {
   state: () => ({
     documents: [],
     stats: {},
+    selectedCategoryId: null,
+    selectedCategoryDepartmentId: null,
     isLoading: false,
     error: null
   }),
 
   actions: {
+    selectCategoryContext(categoryId, departmentId) {
+      this.selectedCategoryId = categoryId;
+      this.selectedCategoryDepartmentId = departmentId || 'global';
+    },
+
     async fetchDocuments() {
       this.isLoading = true;
       try {

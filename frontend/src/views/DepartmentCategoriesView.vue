@@ -51,11 +51,13 @@ import { useAuthStore } from '../stores/auth';
 import api from '../services/api';
 import CategoryManager from '../components/categories/CategoryManager.vue';
 import CategoryModal from '../components/categories/CategoryModal.vue';
+import { useDocumentStore } from '../stores/documents';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
 const authStore = useAuthStore();
+const documentStore = useDocumentStore();
 
 const canManage = computed(() => authStore.hasPermission('categories:manage') || authStore.user?.role === 'admin_sgc');
 
@@ -97,7 +99,8 @@ async function fetchCategories() {
 }
 
 function openCategory(cat) {
-  router.push(`/dashboard/departments/${departmentId.value}/categories/${cat.id}/documents`);
+  documentStore.selectCategoryContext(cat.id, departmentId.value);
+  router.push('/dashboard/category-documents');
 }
 
 function createCategory() {

@@ -32,15 +32,17 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useUserStore } from '../stores/users';
+import { useDocumentStore } from '../stores/documents';
 import api from '../services/api';
 import DocumentManager from '../components/DocumentManager.vue';
 
 const route = useRoute();
 const router = useRouter();
 const userStore = useUserStore();
+const documentStore = useDocumentStore();
 
-const departmentId = computed(() => route.params.departmentId);
-const categoryId = computed(() => route.params.categoryId);
+const departmentId = computed(() => documentStore.selectedCategoryDepartmentId);
+const categoryId = computed(() => documentStore.selectedCategoryId);
 
 const department = computed(() => {
   if (departmentId.value === 'global') return null;
@@ -114,14 +116,15 @@ async function loadData() {
 }
 
 onMounted(() => {
+  if (!categoryId.value) {
+    router.replace('/dashboard/overview');
+    return;
+  }
   loadData();
 });
 
-watch(() => route.params, () => {
-  if (route.name === 'category-documents') {
-    loadData();
-  }
-});
+// Remove watch on route.params since we don't use them anymore
+
 </script>
 
 <style scoped>
