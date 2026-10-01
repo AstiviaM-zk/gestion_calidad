@@ -1,5 +1,11 @@
 <template>
-  <div class="panel-section">
+  <div class="roles-manager-container">
+    <div class="breadcrumb">
+      <router-link to="/dashboard/overview" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Inicio</router-link>
+      <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Roles y Permisos</span>
+    </div>
+    <div class="panel-section">
     <div class="section-header">
       <div>
         <h3 class="section-title"><i class="fa-solid fa-user-gear"></i> Roles y Matriz de Permisos QMS</h3>
@@ -59,6 +65,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     <RoleFormModal 
@@ -126,6 +133,12 @@ function openEditModal(role) {
 </script>
 
 <style scoped>
+.roles-manager-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .panel-section {
   background: #ffffff;
   border: 1px solid var(--border-light);

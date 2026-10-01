@@ -38,6 +38,12 @@ const routes = [
         component: () => import('../components/departments/DepartmentManager.vue')
       },
       {
+        path: 'categories',
+        name: 'dashboard-categories',
+        component: () => import('../views/GlobalCategoriesView.vue'),
+        meta: { requiredPermission: 'categories:manage' }
+      },
+      {
         path: 'documents',
         name: 'dashboard-documents',
         component: () => import('../components/DocumentManager.vue'),

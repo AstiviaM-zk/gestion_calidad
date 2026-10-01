@@ -1,5 +1,11 @@
 <template>
-  <div class="panel-section">
+  <div class="document-manager-container">
+    <div class="breadcrumb">
+      <router-link to="/dashboard/overview" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Inicio</router-link>
+      <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Documentos</span>
+    </div>
+    <div class="panel-section">
     <div class="section-header">
       <div>
         <h3 class="section-title"><i class="fa-solid fa-file-contract"></i> Gestor de Documentos QMS</h3>
@@ -91,6 +97,7 @@
         </tbody>
       </table>
     </div>
+    </div>
   </div>
 </template>
 
@@ -161,6 +168,12 @@ function createDocument() { alert("Alta de nuevo documento QMS"); }
 </script>
 
 <style scoped>
+.document-manager-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 .panel-section {
   background: #ffffff;
   border: 1px solid var(--border-light);
