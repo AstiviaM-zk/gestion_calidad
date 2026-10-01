@@ -170,8 +170,8 @@ function getDepartmentName(id) {
 }
 
 function openCategory(cat) {
-  // Logic to open category documents view directly from global categories
-  console.log('Open from global view', cat);
+  const depId = cat.department_id || 'global';
+  router.push(`/dashboard/departments/${depId}/categories/${cat.id}/documents`);
 }
 
 function createCategory() {

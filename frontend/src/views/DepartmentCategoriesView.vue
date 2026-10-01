@@ -97,9 +97,7 @@ async function fetchCategories() {
 }
 
 function openCategory(cat) {
-  // TODO: Navigate to category documents view
-  // router.push(`/dashboard/departments/${departmentId.value}/categories/${cat.id}`);
-  console.log('Open category:', cat);
+  router.push(`/dashboard/departments/${departmentId.value}/categories/${cat.id}/documents`);
 }
 
 function createCategory() {

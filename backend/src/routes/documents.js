@@ -2,33 +2,9 @@ import express from 'express';
 import { getAllUsers } from '../services/userService.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 
-const router = express.Router();
+import { pool } from '../config/db.js';
 
-// Mock QMS Documents Data
-const documentsData = [
-  {
-    id: 'DOC-QMS-001',
-    title: 'Manual de Gestión de la Calidad ISO 9001:2015',
-    category: 'Manuales',
-    version: 'v3.2',
-    status: 'Aprobado',
-    author: 'Ing. Carlos Mendoza',
-    updatedAt: '2026-08-15',
-    type: 'PDF',
-    size: '4.2 MB'
-  },
-  {
-    id: 'DOC-QMS-002',
-    title: 'Procedimiento Operativo Estándar - Control de Cambios',
-    category: 'Procedimientos',
-    version: 'v2.1',
-    status: 'Aprobado',
-    author: 'Dra. Elena Ramos',
-    updatedAt: '2026-08-28',
-    type: 'PDF',
-    size: '1.8 MB'
-  }
-];
+const router = express.Router();
 
 // Mock System Stats Data
 const statsData = {
@@ -43,11 +19,41 @@ const statsData = {
 /**
  * GET /api/documents
  */
-router.get('/documents', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    documents: documentsData
-  });
+router.get('/documents', authenticateToken, async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT 
+        d.id as db_id,
+        d.code as id,
+        d.name as title,
+        c.name as category,
+        d.current_version as version,
+        d.status,
+        u.name as author,
+        d.created_at as "updatedAt",
+        'PDF' as type,
+        '1.0 MB' as size
+      FROM qms.documents d
+      LEFT JOIN qms.categories c ON d.id_category = c.id
+      LEFT JOIN qms.users u ON d.created_by = u.id
+      WHERE d.is_active = true
+      ORDER BY d.created_at DESC
+    `);
+    
+    const formattedRows = rows.map(row => ({
+      ...row,
+      updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString().split('T')[0] : 'N/A',
+      author: row.author || 'Sistema'
+    }));
+
+    res.json({
+      success: true,
+      documents: formattedRows
+    });
+  } catch (error) {
+    console.error('Error fetching documents:', error);
+    res.status(500).json({ success: false, message: 'Error de servidor al cargar documentos' });
+  }
 });
 
 /**

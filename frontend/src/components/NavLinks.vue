@@ -26,14 +26,6 @@
     <span>Categorías</span>
   </button>
 
-  <button 
-    v-if="canReadDocuments"
-    :class="['nav-item', { active: isTabActive('/dashboard/documents') }]"
-    @click="navigate('/dashboard/documents')"
-  >
-    <i class="fa-solid fa-folder-closed"></i>
-    <span>Documentos</span>
-  </button>
 
   <div class="nav-section-title" v-if="canReadUsers || canReadRoles">Administración</div>
 
@@ -67,7 +59,6 @@ const route = useRoute();
 const authStore = useAuthStore();
 const documentStore = useDocumentStore();
 
-const canReadDocuments = computed(() => authStore.hasPermission('documents:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
 const canManageCategories = computed(() => authStore.hasPermission('categories:manage'));

@@ -1,15 +1,15 @@
 <template>
   <div class="document-manager-container">
-    <div class="breadcrumb">
+    <div class="breadcrumb" v-if="!hideBreadcrumb">
       <router-link to="/dashboard/overview" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Inicio</router-link>
       <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
       <span class="breadcrumb-current">Documentos</span>
     </div>
-    <div class="panel-section">
+    <div class="document-content-wrapper">
     <div class="section-header">
       <div>
-        <h3 class="section-title"><i class="fa-solid fa-file-contract"></i> Gestor de Documentos QMS</h3>
-        <p class="section-subtitle">Control de versiones, procedimientos e instructivos de calidad</p>
+        <h3 class="section-title"><i class="fa-solid fa-file-contract"></i> {{ customTitle || 'Gestor de Documentos QMS' }}</h3>
+        <p class="section-subtitle">{{ customSubtitle || 'Control de versiones, procedimientos e instructivos de calidad' }}</p>
       </div>
       <button class="btn btn-primary btn-sm" @click="createDocument">
         <i class="fa-solid fa-plus"></i> Nuevo Documento
@@ -106,7 +106,10 @@ import { ref, computed, onMounted } from "vue";
 import { useDocumentStore } from "../stores/documents";
 
 const props = defineProps({
-  documents: { type: Array, default: null }
+  documents: { type: Array, default: null },
+  hideBreadcrumb: { type: Boolean, default: false },
+  customTitle: { type: String, default: '' },
+  customSubtitle: { type: String, default: '' }
 });
 
 const documentStore = useDocumentStore();
@@ -174,16 +177,10 @@ function createDocument() { alert("Alta de nuevo documento QMS"); }
   flex-direction: column;
 }
 
-.panel-section {
-  background: #ffffff;
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-xl);
-  padding: 20px;
-  box-shadow: var(--shadow-card);
+.document-content-wrapper {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   min-height: 0;
 }
 

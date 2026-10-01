@@ -38,16 +38,15 @@ const routes = [
         component: () => import('../components/departments/DepartmentManager.vue')
       },
       {
+        path: 'departments/:departmentId/categories/:categoryId/documents',
+        name: 'category-documents',
+        component: () => import('../views/CategoryDocumentsView.vue'),
+      },
+      {
         path: 'categories',
         name: 'dashboard-categories',
         component: () => import('../views/GlobalCategoriesView.vue'),
         meta: { requiredPermission: 'categories:manage' }
-      },
-      {
-        path: 'documents',
-        name: 'dashboard-documents',
-        component: () => import('../components/DocumentManager.vue'),
-        meta: { requiredPermission: 'documents:read' }
       },
       {
         path: 'users',
