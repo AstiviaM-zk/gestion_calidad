@@ -98,23 +98,38 @@
       </table>
     </div>
     </div>
+    
+    <DocumentModal 
+      :show="showCreateModal" 
+      :isSubmitting="isSubmitting"
+      @close="showCreateModal = false"
+      @submit="handleDocumentSubmit"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useDocumentStore } from "../stores/documents";
+import api from "../services/api";
+import { showToast } from "../utils/toast";
+import DocumentModal from "./DocumentModal.vue";
 
 const props = defineProps({
   documents: { type: Array, default: null },
   hideBreadcrumb: { type: Boolean, default: false },
   customTitle: { type: String, default: '' },
-  customSubtitle: { type: String, default: '' }
+  customSubtitle: { type: String, default: '' },
+  category: { type: Object, default: null },
+  department: { type: Object, default: null }
 });
 
 const documentStore = useDocumentStore();
 const searchQuery = ref("");
 const activeFilter = ref("all");
+
+const showCreateModal = ref(false);
+const isSubmitting = ref(false);
 
 onMounted(() => {
   if (!props.documents || props.documents.length === 0) {
@@ -181,7 +196,48 @@ function getStatusLabel(status) {
 function viewDoc(doc) { alert("Visualizando: " + doc.title); }
 function downloadDoc(doc) { alert("Descargando: " + doc.title); }
 function editDoc(doc) { alert("Editando: " + doc.id); }
-function createDocument() { alert("Alta de nuevo documento QMS"); }
+
+function createDocument() { 
+  showCreateModal.value = true; 
+}
+
+async function handleDocumentSubmit(formData) {
+  isSubmitting.value = true;
+  
+  const data = new FormData();
+  data.append('name', formData.name);
+  data.append('code', formData.code);
+  data.append('description', formData.description);
+  
+  // Agregamos contexto si lo hay
+  const deptId = documentStore.selectedCategoryDepartmentId;
+  const catId = documentStore.selectedCategoryId;
+  
+  if (deptId) data.append('departmentId', deptId);
+  if (catId) data.append('categoryId', catId);
+  
+  data.append('file', formData.file);
+
+  try {
+    const res = await api.post('/documents', data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    
+    if (res.data.success) {
+      showToast.success('Documento creado exitosamente');
+      showCreateModal.value = false;
+      // Refrescar documentos
+      // Asumimos que categoryDocumentsView hace reload si usamos emit, o refrescamos la store
+      // En este caso forzamos a recargar la página o emitimos un evento para refrescar
+      window.location.reload(); 
+    }
+  } catch (error) {
+    console.error('Error al subir documento:', error);
+    showToast.error(error.response?.data?.message || 'Error al subir el documento');
+  } finally {
+    isSubmitting.value = false;
+  }
+}
 </script>
 
 <style scoped>

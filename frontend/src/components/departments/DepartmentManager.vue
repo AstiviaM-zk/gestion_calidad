@@ -5,7 +5,7 @@
       <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
       <span class="breadcrumb-current">Departamentos</span>
     </div>
-    <div class="panel-section glass-card shadow-sm">
+    <div class="department-content-wrapper">
       <div class="section-header">
         <div>
           <div class="title-with-badge">
@@ -206,7 +206,7 @@ async function proceedDelete() {
   flex-direction: column;
 }
 
-.panel-section {
+.department-content-wrapper {
   display: flex;
   flex-direction: column;
   flex: 1;

@@ -41,3 +41,7 @@ Desktop.ini
 .idea/
 .gemini/
 backend/data/users.json
+
+# Almacenamiento local de documentos
+backend/src/storage/
+storage/
