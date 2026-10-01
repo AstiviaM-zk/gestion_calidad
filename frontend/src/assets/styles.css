@@ -469,3 +469,10 @@ html, body {
     height: auto;
   }
 }
+
+/* Breadcrumb Styles */
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 20px; color: var(--text-muted); }
+.breadcrumb-link { color: var(--primary); text-decoration: none; font-weight: 600; display: flex; align-items: center; gap: 6px; transition: color 0.2s; }
+.breadcrumb-link:hover { color: #1e3a8a; text-decoration: underline; }
+.breadcrumb-separator { font-size: 10px; color: #cbd5e1; }
+.breadcrumb-current { font-weight: 500; color: var(--text-main); }

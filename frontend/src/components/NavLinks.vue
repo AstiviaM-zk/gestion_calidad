@@ -6,7 +6,24 @@
     @click="navigate('/dashboard/overview')"
   >
     <i class="fa-solid fa-chart-pie"></i>
-    <span>Resumen Dashboard</span>
+    <span>Inicio</span>
+  </button>
+
+  <button 
+    :class="['nav-item', { active: isTabActive('/dashboard/departments') }]"
+    @click="navigate('/dashboard/departments')"
+  >
+    <i class="fa-solid fa-building"></i>
+    <span>Departamentos</span>
+  </button>
+
+  <button 
+    v-if="canManageCategories"
+    :class="['nav-item', 'nav-submenu', { active: isTabActive('/dashboard/categories') }]"
+    @click="navigate('/dashboard/categories')"
+  >
+    <i class="fa-solid fa-folder-tree"></i>
+    <span>Categorías</span>
   </button>
 
   <button 
@@ -18,16 +35,7 @@
     <span>Documentos</span>
   </button>
 
-  <div class="nav-section-title" v-if="canReadDepartments || canReadUsers || canReadRoles">Administración</div>
-
-  <button 
-    v-if="canReadDepartments"
-    :class="['nav-item', { active: isTabActive('/dashboard/departments') }]"
-    @click="navigate('/dashboard/departments')"
-  >
-    <i class="fa-solid fa-building"></i>
-    <span>Departamentos</span>
-  </button>
+  <div class="nav-section-title" v-if="canReadUsers || canReadRoles">Administración</div>
 
   <button 
     v-if="canReadUsers"
@@ -59,10 +67,10 @@ const route = useRoute();
 const authStore = useAuthStore();
 const documentStore = useDocumentStore();
 
-const canReadDocuments = computed(() => authStore.hasPermission('templates:read'));
+const canReadDocuments = computed(() => authStore.hasPermission('documents:read'));
 const canReadUsers = computed(() => authStore.hasPermission('users:read'));
 const canReadRoles = computed(() => authStore.hasPermission('roles:read'));
-const canReadDepartments = computed(() => authStore.hasPermission('departments:read'));
+const canManageCategories = computed(() => authStore.hasPermission('categories:manage'));
 
 const documentsCount = computed(() => documentStore.documents.length);
 
@@ -126,4 +134,9 @@ function navigate(path) {
   color: #ffffff;
 }
 
+.nav-submenu {
+  padding-left: 36px;
+  font-size: 12.5px;
+  margin-top: -4px;
+}
 </style>

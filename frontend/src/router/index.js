@@ -28,16 +28,26 @@ const routes = [
         component: () => import('../views/DashboardOverviewView.vue')
       },
       {
+        path: 'department-categories',
+        name: 'department-categories',
+        component: () => import('../views/DepartmentCategoriesView.vue')
+      },
+      {
         path: 'departments',
         name: 'dashboard-departments',
-        component: () => import('../components/departments/DepartmentManager.vue'),
-        meta: { requiredPermission: 'departments:read' }
+        component: () => import('../components/departments/DepartmentManager.vue')
+      },
+      {
+        path: 'categories',
+        name: 'dashboard-categories',
+        component: () => import('../views/GlobalCategoriesView.vue'),
+        meta: { requiredPermission: 'categories:manage' }
       },
       {
         path: 'documents',
         name: 'dashboard-documents',
         component: () => import('../components/DocumentManager.vue'),
-        meta: { requiredPermission: 'templates:read' }
+        meta: { requiredPermission: 'documents:read' }
       },
       {
         path: 'users',

@@ -1,5 +1,10 @@
 <template>
   <div class="user-management-container">
+    <div class="breadcrumb">
+      <router-link to="/dashboard/overview" class="breadcrumb-link"><i class="fa-solid fa-house"></i> Inicio</router-link>
+      <span class="breadcrumb-separator"><i class="fa-solid fa-chevron-right"></i></span>
+      <span class="breadcrumb-current">Usuarios</span>
+    </div>
     <UserTable
       :user-list="userList"
       :total-active-users-count="totalActiveUsersCount"
