@@ -27,7 +27,7 @@
         >
       </div>
 
-      <div class="filter-pills">
+      <div class="filter-pills" v-if="canApprove">
         <button 
           v-for="filter in filters" 
           :key="filter.value"
@@ -111,6 +111,7 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import { useDocumentStore } from "../stores/documents";
+import { useAuthStore } from "../stores/auth";
 import api from "../services/api";
 import { showToast } from "../utils/toast";
 import DocumentModal from "./DocumentModal.vue";
@@ -125,8 +126,11 @@ const props = defineProps({
 });
 
 const documentStore = useDocumentStore();
+const authStore = useAuthStore();
 const searchQuery = ref("");
 const activeFilter = ref("all");
+
+const canApprove = computed(() => authStore.hasPermission('documents:approve') || authStore.user?.role === 'admin_sgc');
 
 const showCreateModal = ref(false);
 const isSubmitting = ref(false);
@@ -151,13 +155,23 @@ const filters = [
 
 const filteredDocuments = computed(() => {
   return documentList.value.filter(doc => {
-    const matchesFilter = activeFilter.value === "all" || doc.status === activeFilter.value;
     const query = searchQuery.value.toLowerCase();
     const matchesSearch = doc.title.toLowerCase().includes(query) ||
                           doc.id.toLowerCase().includes(query) ||
                           doc.author.toLowerCase().includes(query) ||
                           doc.category.toLowerCase().includes(query);
-    return matchesFilter && matchesSearch;
+                          
+    if (!matchesSearch) return false;
+
+    if (!canApprove.value) {
+      // Espectador: Solo ve aprobados o sus propios pendientes
+      const isApproved = doc.status === "approved";
+      const isMyPending = doc.status === "pending" && doc.uploader_id === authStore.user?.id;
+      return isApproved || isMyPending;
+    } else {
+      // Aprobador: Aplica el filtro activo (pill)
+      return activeFilter.value === "all" || doc.status === activeFilter.value;
+    }
   });
 });
 

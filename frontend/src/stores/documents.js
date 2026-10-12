@@ -5,8 +5,8 @@ export const useDocumentStore = defineStore('documents', {
   state: () => ({
     documents: [],
     stats: {},
-    selectedCategoryId: null,
-    selectedCategoryDepartmentId: null,
+    selectedCategoryId: sessionStorage.getItem('selectedCategoryId') || null,
+    selectedCategoryDepartmentId: sessionStorage.getItem('selectedCategoryDepartmentId') || null,
     isLoading: false,
     error: null
   }),
@@ -15,6 +15,19 @@ export const useDocumentStore = defineStore('documents', {
     selectCategoryContext(categoryId, departmentId) {
       this.selectedCategoryId = categoryId;
       this.selectedCategoryDepartmentId = departmentId || 'global';
+      
+      if (categoryId) sessionStorage.setItem('selectedCategoryId', categoryId);
+      else sessionStorage.removeItem('selectedCategoryId');
+      
+      if (departmentId) sessionStorage.setItem('selectedCategoryDepartmentId', departmentId || 'global');
+      else sessionStorage.removeItem('selectedCategoryDepartmentId');
+    },
+
+    clearCategoryContext() {
+      this.selectedCategoryId = null;
+      this.selectedCategoryDepartmentId = null;
+      sessionStorage.removeItem('selectedCategoryId');
+      sessionStorage.removeItem('selectedCategoryDepartmentId');
     },
 
     async fetchDocuments() {

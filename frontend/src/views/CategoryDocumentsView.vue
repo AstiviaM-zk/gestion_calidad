@@ -89,24 +89,15 @@ async function loadData() {
   }
 
   // 2. Fetch Documents for this category
-  // Since the backend doesn't have a specific endpoint yet, we mock the filtering
   try {
-    const { data } = await api.get('/documents');
-    if (data.success) {
-      if (category.value) {
-        // En un escenario real, backend filtraría por category_id
-        // Aquí filtramos por el string del mock (category name) o mostramos todos para la demo si no hay match
-        const filtered = data.documents.filter(doc => doc.category.toLowerCase().includes(category.value.name.toLowerCase()));
-        
-        // Fallback para la demo: si no encuentra ninguno, le asignamos los mocks a esta categoría
-        if (filtered.length === 0) {
-           documents.value = data.documents.map(d => ({ ...d, category: category.value.name }));
-        } else {
-           documents.value = filtered;
-        }
-      } else {
-        documents.value = data.documents;
+    const { data } = await api.get('/documents', {
+      params: {
+        categoryId: categoryId.value,
+        departmentId: departmentId.value
       }
+    });
+    if (data.success) {
+      documents.value = data.documents;
     }
   } catch (error) {
     console.error('Error fetching documents:', error);

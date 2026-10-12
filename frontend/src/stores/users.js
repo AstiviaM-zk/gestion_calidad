@@ -5,7 +5,7 @@ export const useUserStore = defineStore('users', {
   state: () => ({
     users: [],
     departments: [],
-    selectedDepartmentId: null,
+    selectedDepartmentId: sessionStorage.getItem('selectedDepartmentId') || null,
     isLoading: false,
     isLoadingDepartments: false,
     error: null
@@ -14,6 +14,16 @@ export const useUserStore = defineStore('users', {
   actions: {
     selectDepartment(id) {
       this.selectedDepartmentId = id;
+      if (id) {
+        sessionStorage.setItem('selectedDepartmentId', id);
+      } else {
+        sessionStorage.removeItem('selectedDepartmentId');
+      }
+    },
+    
+    clearDepartmentContext() {
+      this.selectedDepartmentId = null;
+      sessionStorage.removeItem('selectedDepartmentId');
     },
 
     async fetchUsers() {

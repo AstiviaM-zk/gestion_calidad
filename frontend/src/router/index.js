@@ -101,4 +101,22 @@ router.beforeEach((to, from, next) => {
   next();
 });
 
+router.afterEach(async (to, from) => {
+  // Clear AppState / context if navigating outside the respective module flows
+  
+  const inDepartmentFlow = ['department-categories', 'category-documents'].includes(to.name);
+  if (!inDepartmentFlow) {
+    const { useUserStore } = await import('../stores/users');
+    const userStore = useUserStore();
+    userStore.clearDepartmentContext();
+  }
+
+  const inCategoryFlow = ['category-documents'].includes(to.name);
+  if (!inCategoryFlow) {
+    const { useDocumentStore } = await import('../stores/documents');
+    const docStore = useDocumentStore();
+    docStore.clearCategoryContext();
+  }
+});
+
 export default router;

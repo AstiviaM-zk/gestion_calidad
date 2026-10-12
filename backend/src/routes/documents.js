@@ -25,7 +25,9 @@ const statsData = {
  */
 router.get('/documents', authenticateToken, async (req, res) => {
   try {
-    const { rows } = await pool.query(`
+    const { categoryId, departmentId } = req.query;
+    
+    let query = `
       SELECT 
         d.id as db_id,
         d.code as id,
@@ -36,13 +38,39 @@ router.get('/documents', authenticateToken, async (req, res) => {
         u.full_name as author,
         d.created_at as "updatedAt",
         'PDF' as type,
-        '1.0 MB' as size
+        '1.0 MB' as size,
+        (
+          SELECT uploaded_by 
+          FROM qms.documents_versions 
+          WHERE document_id = d.id 
+          ORDER BY created_at DESC 
+          LIMIT 1
+        ) as uploader_id
       FROM qms.documents d
       LEFT JOIN qms.categories c ON d.id_category = c.id
       LEFT JOIN qms.users u ON d.created_by = u.id
       WHERE d.is_active = true
-      ORDER BY d.created_at DESC
-    `);
+    `;
+    const params = [];
+    let paramIndex = 1;
+
+    if (categoryId) {
+      query += ` AND d.id_category = $${paramIndex++}`;
+      params.push(categoryId);
+    }
+
+    if (departmentId) {
+      if (departmentId === 'global' || departmentId === 'null') {
+        query += ` AND d.id_department IS NULL`;
+      } else {
+        query += ` AND d.id_department = $${paramIndex++}`;
+        params.push(departmentId);
+      }
+    }
+
+    query += ` ORDER BY d.created_at DESC`;
+
+    const { rows } = await pool.query(query, params);
     
     const formattedRows = rows.map(row => ({
       ...row,
