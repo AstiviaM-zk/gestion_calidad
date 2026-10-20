@@ -1,6 +1,7 @@
 <template>
-  <div v-if="show" class="modal-overlay" @click.self="close">
-    <div class="modal-card shadow-card">
+  <Teleport to="body">
+    <div v-if="show" class="modal-overlay" @click.self="close">
+      <div class="modal-card shadow-card">
       <div class="modal-header">
         <h3 class="modal-title">
           <i class="fa-solid fa-file-circle-plus"></i>
@@ -81,6 +82,7 @@
       </form>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <script setup>
@@ -155,7 +157,8 @@ function submitForm() {
   height: 100vh;
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(8px);
-  z-index: 100;
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;

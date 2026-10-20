@@ -54,7 +54,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="doc in filteredDocuments" :key="doc.id">
+          <tr 
+            v-for="doc in filteredDocuments" 
+            :key="doc.id"
+            class="clickable-row"
+            :class="{ 'is-selected-row': selectedDocForViewer?.db_id === doc.db_id && isViewerOpen }"
+            @click="openViewer(doc)"
+          >
             <td class="font-mono text-sm font-bold text-primary">{{ doc.id }}</td>
             <td>
               <div class="doc-title-cell">
@@ -75,14 +81,14 @@
             <td class="text-subtle text-sm">{{ doc.author }}</td>
             <td class="text-subtle text-sm">{{ doc.updatedAt }}</td>
             <td>
-              <div class="action-buttons">
-                <button class="action-btn" title="Ver Documento" @click="viewDoc(doc)">
+              <div class="action-buttons" @click.stop>
+                <button class="action-btn" title="Ver Documento" @click.stop="openViewer(doc)">
                   <i class="fa-regular fa-eye"></i>
                 </button>
-                <button class="action-btn" title="Descargar" @click="downloadDoc(doc)">
+                <button v-if="canDownload" class="action-btn" title="Descargar" @click.stop="downloadDoc(doc)">
                   <i class="fa-solid fa-download"></i>
                 </button>
-                <button class="action-btn" title="Editar" @click="editDoc(doc)">
+                <button class="action-btn" title="Editar" @click.stop="editDoc(doc)">
                   <i class="fa-regular fa-pen-to-square"></i>
                 </button>
               </div>
@@ -105,6 +111,13 @@
       @close="showCreateModal = false"
       @submit="handleDocumentSubmit"
     />
+
+    <DocumentViewerDrawer 
+      :document="selectedDocForViewer" 
+      :is-open="isViewerOpen"
+      @close="closeViewer"
+      @status-updated="handleStatusUpdated"
+    />
   </div>
 </template>
 
@@ -115,6 +128,7 @@ import { useAuthStore } from "../stores/auth";
 import api from "../services/api";
 import { showToast } from "../utils/toast";
 import DocumentModal from "./DocumentModal.vue";
+import DocumentViewerDrawer from "./DocumentViewerDrawer.vue";
 
 const props = defineProps({
   documents: { type: Array, default: null },
@@ -131,9 +145,13 @@ const searchQuery = ref("");
 const activeFilter = ref("all");
 
 const canApprove = computed(() => authStore.hasPermission('documents:approve') || authStore.user?.role === 'admin_sgc');
+const canDownload = computed(() => authStore.hasPermission('documents:download') || authStore.user?.role === 'admin_sgc');
 
 const showCreateModal = ref(false);
 const isSubmitting = ref(false);
+
+const selectedDocForViewer = ref(null);
+const isViewerOpen = ref(false);
 
 onMounted(() => {
   if (!props.documents || props.documents.length === 0) {
@@ -207,9 +225,52 @@ function getStatusLabel(status) {
   return map[status] || status;
 }
 
-function viewDoc(doc) { alert("Visualizando: " + doc.title); }
-function downloadDoc(doc) { alert("Descargando: " + doc.title); }
-function editDoc(doc) { alert("Editando: " + doc.id); }
+function openViewer(doc) {
+  selectedDocForViewer.value = doc;
+  isViewerOpen.value = true;
+}
+
+function closeViewer() {
+  isViewerOpen.value = false;
+}
+
+function handleStatusUpdated({ docId, status }) {
+  const list = props.documents || documentStore.documents;
+  const target = list.find(d => d.db_id === docId);
+  if (target) {
+    target.status = status;
+  }
+  if (selectedDocForViewer.value && selectedDocForViewer.value.db_id === docId) {
+    selectedDocForViewer.value.status = status;
+  }
+}
+
+function viewDoc(doc) {
+  openViewer(doc);
+}
+
+async function downloadDoc(doc) {
+  try {
+    const res = await api.get(`/documents/${doc.db_id}/file`, { responseType: 'blob' });
+    const blobUrl = URL.createObjectURL(res.data);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    const defaultName = `${doc.id}_${doc.title}.${(doc.type || 'pdf').toLowerCase()}`;
+    link.download = doc.file_name || defaultName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+    showToast.success('Descarga iniciada exitosamente');
+  } catch (error) {
+    console.error('Error al descargar documento:', error);
+    showToast.error('No se pudo descargar el archivo');
+  }
+}
+
+function editDoc(doc) {
+  showToast.info("Edición de metadatos para " + doc.id + " en desarrollo");
+}
 
 function createDocument() { 
   showCreateModal.value = true; 
@@ -424,6 +485,20 @@ async function handleDocumentSubmit(formData) {
 
 .qms-table tbody tr:hover {
   background: rgba(248, 250, 252, 0.95);
+}
+
+.qms-table tbody tr.clickable-row {
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qms-table tbody tr.clickable-row:hover {
+  background: #f1f5f9;
+}
+
+.qms-table tbody tr.is-selected-row {
+  background: #eff6ff !important;
+  box-shadow: inset 4px 0 0 var(--primary);
 }
 
 .doc-title-cell {

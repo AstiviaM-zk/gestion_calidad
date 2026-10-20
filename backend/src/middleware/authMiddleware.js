@@ -6,16 +6,22 @@ import { getUserByEmail } from '../services/userService.js';
  * y consultar el estado actual del usuario en PostgreSQL.
  */
 export async function authenticateToken(req, res, next) {
+  let token = null;
   const authHeader = req.headers.authorization;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({
       success: false,
       message: 'Acceso no autorizado: Token de sesión ausente'
     });
   }
 
-  const token = authHeader.split(' ')[1];
   const jwtSecret = process.env.JWT_SECRET || 'default_secret';
 
   try {

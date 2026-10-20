@@ -3,7 +3,7 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import { getAllUsers } from '../services/userService.js';
-import { authenticateToken } from '../middleware/authMiddleware.js';
+import { authenticateToken, requirePermission } from '../middleware/authMiddleware.js';
 
 import { pool } from '../config/db.js';
 
@@ -32,23 +32,27 @@ router.get('/documents', authenticateToken, async (req, res) => {
         d.id as db_id,
         d.code as id,
         d.name as title,
+        d.description,
         c.name as category,
         d.current_version as version,
         d.status,
         u.full_name as author,
         d.created_at as "updatedAt",
-        'PDF' as type,
-        '1.0 MB' as size,
-        (
-          SELECT uploaded_by 
-          FROM qms.documents_versions 
-          WHERE document_id = d.id 
-          ORDER BY created_at DESC 
-          LIMIT 1
-        ) as uploader_id
+        dv.file_name,
+        dv.mime_type,
+        dv.file_size_mb,
+        dv.file_path,
+        dv.uploaded_by as uploader_id
       FROM qms.documents d
       LEFT JOIN qms.categories c ON d.id_category = c.id
       LEFT JOIN qms.users u ON d.created_by = u.id
+      LEFT JOIN LATERAL (
+        SELECT file_name, mime_type, file_size_mb, file_path, uploaded_by
+        FROM qms.documents_versions
+        WHERE document_id = d.id
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) dv ON true
       WHERE d.is_active = true
     `;
     const params = [];
@@ -72,11 +76,25 @@ router.get('/documents', authenticateToken, async (req, res) => {
 
     const { rows } = await pool.query(query, params);
     
-    const formattedRows = rows.map(row => ({
-      ...row,
-      updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString().split('T')[0] : 'N/A',
-      author: row.author || 'Sistema'
-    }));
+    const formattedRows = rows.map(row => {
+      let ext = 'PDF';
+      if (row.file_name) {
+        const parsed = path.extname(row.file_name).replace('.', '').toUpperCase();
+        if (parsed) ext = parsed;
+      } else if (row.mime_type) {
+        if (row.mime_type.includes('pdf')) ext = 'PDF';
+        else if (row.mime_type.includes('word') || row.mime_type.includes('officedocument.wordprocessingml')) ext = 'DOCX';
+        else if (row.mime_type.includes('excel') || row.mime_type.includes('officedocument.spreadsheetml')) ext = 'XLSX';
+      }
+
+      return {
+        ...row,
+        type: ext,
+        size: row.file_size_mb ? `${parseFloat(row.file_size_mb).toFixed(2)} MB` : '1.0 MB',
+        updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString().split('T')[0] : 'N/A',
+        author: row.author || 'Sistema'
+      };
+    });
 
     res.json({
       success: true,
@@ -172,6 +190,188 @@ router.post('/documents', authenticateToken, upload.single('file'), async (req, 
     res.status(500).json({ success: false, message: 'Error al crear documento' });
   } finally {
     client.release();
+  }
+});
+
+/**
+ * GET /api/documents/:id/file
+ * Sirve el archivo para previsualización (inline)
+ */
+router.get('/documents/:id/file', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const versionRes = await pool.query(
+      `SELECT file_path, file_name, mime_type 
+       FROM qms.documents_versions 
+       WHERE document_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [id]
+    );
+
+    if (versionRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Archivo no encontrado' });
+    }
+
+    const { file_path, file_name, mime_type } = versionRes.rows[0];
+    const fullPath = path.join(process.cwd(), 'src', 'storage', file_path);
+
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ success: false, message: 'El archivo físico no existe en el servidor' });
+    }
+
+    res.setHeader('Content-Type', mime_type || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file_name)}"`);
+    res.sendFile(fullPath);
+  } catch (error) {
+    console.error('Error al servir archivo del documento:', error);
+    res.status(500).json({ success: false, message: 'Error interno al cargar el archivo' });
+  }
+});
+
+/**
+ * PATCH /api/documents/:id/status
+ * Actualizar estado del documento (Aprobado, Rechazado, Pendiente, Obsoleto)
+ */
+router.patch('/documents/:id/status', authenticateToken, requirePermission('documents:approve'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['approved', 'pending', 'rejected', 'obsolete'];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Estado no válido' });
+    }
+
+    const updateRes = await pool.query(
+      `UPDATE qms.documents 
+       SET status = $1 
+       WHERE id = $2 
+       RETURNING id, name, code, status`,
+      [status, id]
+    );
+
+    if (updateRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Documento no encontrado' });
+    }
+
+    res.json({
+      success: true,
+      message: `Documento ${status === 'approved' ? 'aprobado' : status === 'rejected' ? 'rechazado' : 'actualizado'} exitosamente`,
+      document: updateRes.rows[0]
+    });
+  } catch (error) {
+    console.error('Error al actualizar estado del documento:', error);
+    res.status(500).json({ success: false, message: 'Error interno al actualizar estado' });
+  }
+});
+
+/**
+ * GET /api/documents/:id/versions
+ * Obtiene el historial de versiones de un documento
+ */
+router.get('/documents/:id/versions', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const versionsRes = await pool.query(
+      `SELECT 
+         dv.id,
+         dv.document_id,
+         dv.version_number as version,
+         dv.file_name,
+         dv.mime_type,
+         dv.file_size_mb,
+         dv.created_at as "createdAt",
+         dv.uploaded_by,
+         u.full_name as author
+       FROM qms.documents_versions dv
+       LEFT JOIN qms.users u ON dv.uploaded_by = u.id
+       WHERE dv.document_id = $1
+       ORDER BY dv.created_at DESC`,
+      [id]
+    );
+
+    const formattedVersions = versionsRes.rows.map(v => ({
+      ...v,
+      createdAt: v.createdAt ? new Date(v.createdAt).toLocaleString('es-MX') : 'N/A',
+      size: v.file_size_mb ? `${parseFloat(v.file_size_mb).toFixed(2)} MB` : 'N/A'
+    }));
+
+    res.json({
+      success: true,
+      versions: formattedVersions
+    });
+  } catch (error) {
+    console.error('Error al obtener versiones del documento:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener versiones' });
+  }
+});
+
+/**
+ * GET /api/documents/versions/:versionId/file
+ * Sirve el archivo de una versión histórica específica
+ */
+router.get('/documents/versions/:versionId/file', authenticateToken, async (req, res) => {
+  try {
+    const { versionId } = req.params;
+    const versionRes = await pool.query(
+      `SELECT file_path, file_name, mime_type 
+       FROM qms.documents_versions 
+       WHERE id = $1`,
+      [versionId]
+    );
+
+    if (versionRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Versión de archivo no encontrada' });
+    }
+
+    const { file_path, file_name, mime_type } = versionRes.rows[0];
+    const fullPath = path.join(process.cwd(), 'src', 'storage', file_path);
+
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ success: false, message: 'El archivo físico no existe en el servidor' });
+    }
+
+    res.setHeader('Content-Type', mime_type || 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file_name)}"`);
+    res.sendFile(fullPath);
+  } catch (error) {
+    console.error('Error al servir versión del archivo:', error);
+    res.status(500).json({ success: false, message: 'Error interno al cargar la versión del archivo' });
+  }
+});
+
+/**
+ * GET /api/documents/:id/download
+ * Descarga forzada del archivo (Requiere permiso documents:download)
+ */
+router.get('/documents/:id/download', authenticateToken, requirePermission('documents:download'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const versionRes = await pool.query(
+      `SELECT file_path, file_name 
+       FROM qms.documents_versions 
+       WHERE document_id = $1 
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [id]
+    );
+
+    if (versionRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Archivo no encontrado' });
+    }
+
+    const { file_path, file_name } = versionRes.rows[0];
+    const fullPath = path.join(process.cwd(), 'src', 'storage', file_path);
+
+    if (!fs.existsSync(fullPath)) {
+      return res.status(404).json({ success: false, message: 'El archivo físico no existe en el servidor' });
+    }
+
+    res.download(fullPath, file_name);
+  } catch (error) {
+    console.error('Error al descargar archivo del documento:', error);
+    res.status(500).json({ success: false, message: 'Error interno al descargar el archivo' });
   }
 });
 
