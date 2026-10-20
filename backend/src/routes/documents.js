@@ -63,7 +63,7 @@ router.get('/documents', authenticateToken, async (req, res) => {
       if (departmentId === 'global' || departmentId === 'null') {
         query += ` AND d.id_department IS NULL`;
       } else {
-        query += ` AND d.id_department = $${paramIndex++}`;
+        query += ` AND (d.id_department = $${paramIndex++} OR d.id_department IS NULL)`;
         params.push(departmentId);
       }
     }
@@ -116,13 +116,19 @@ router.post('/documents', authenticateToken, upload.single('file'), async (req, 
       if (catRes.rows.length) categoryName = catRes.rows[0].name;
     }
 
+    const isGeneral = categoryName.trim().toLowerCase() === 'general';
+    const finalDepartmentId = isGeneral ? null : (departmentId === 'global' || departmentId === 'null' ? null : departmentId);
+    if (isGeneral) {
+      departmentName = 'Global';
+    }
+
     // 2. Insert Document
     const docQuery = `
       INSERT INTO qms.documents (name, code, description, id_category, id_department, current_version, is_active, status, created_at, created_by)
       VALUES ($1, $2, $3, $4, $5, '1.0', true, 'pending', NOW(), $6)
       RETURNING id
     `;
-    const docValues = [name, code, description, categoryId || null, departmentId === 'global' ? null : departmentId, userId];
+    const docValues = [name, code, description, categoryId || null, finalDepartmentId, userId];
     const docRes = await client.query(docQuery, docValues);
     const newDocId = docRes.rows[0].id;
 
