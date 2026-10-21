@@ -11,7 +11,7 @@
         <h3 class="section-title"><i class="fa-solid fa-file-contract"></i> {{ customTitle || 'Gestor de Documentos QMS' }}</h3>
         <p class="section-subtitle">{{ customSubtitle || 'Control de versiones, procedimientos e instructivos de calidad' }}</p>
       </div>
-      <button class="btn btn-primary btn-sm" @click="createDocument">
+      <button v-if="canCreateDocument" class="btn btn-primary btn-sm" @click="createDocument">
         <i class="fa-solid fa-plus"></i> Nuevo Documento
       </button>
     </div>
@@ -146,6 +146,7 @@ const activeFilter = ref("all");
 
 const canApprove = computed(() => authStore.hasPermission('documents:approve') || authStore.user?.role === 'admin_sgc');
 const canDownload = computed(() => authStore.hasPermission('documents:download') || authStore.user?.role === 'admin_sgc');
+const canCreateDocument = computed(() => authStore.hasPermission('documents:create') || authStore.user?.role === 'admin_sgc' || authStore.user?.role === 'leader');
 
 const showCreateModal = ref(false);
 const isSubmitting = ref(false);

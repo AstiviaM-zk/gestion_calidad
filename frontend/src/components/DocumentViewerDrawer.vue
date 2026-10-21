@@ -184,7 +184,7 @@
                   <h4 class="error-title">No se pudo cargar el archivo</h4>
                   <p class="error-desc">{{ errorMessage }}</p>
                   <div class="error-actions">
-                    <button class="btn btn-secondary btn-sm" @click="loadFile">
+                    <button class="btn btn-secondary btn-sm" @click="loadFile()">
                       <i class="fa-solid fa-rotate-right"></i> Reintentar
                     </button>
                     <button v-if="canDownload" class="btn btn-primary btn-sm" @click="downloadDocument">
@@ -251,9 +251,18 @@
                     <h4 class="versions-title">Trazabilidad de Revisiones y Cambios</h4>
                     <p class="versions-subtitle">Historial cronológico de versiones registradas bajo la norma ISO 9001</p>
                   </div>
-                  <button class="btn btn-secondary btn-sm" @click="fetchVersions" :disabled="isLoadingVersions">
-                    <i class="fa-solid fa-rotate" :class="{ 'fa-spin': isLoadingVersions }"></i> Refrescar
-                  </button>
+                  <div class="header-btns">
+                    <button 
+                      v-if="canCreateVersion" 
+                      class="btn btn-primary btn-sm" 
+                      @click="openNewVersionModal"
+                    >
+                      <i class="fa-solid fa-cloud-arrow-up"></i> Sugerir Nueva Versión
+                    </button>
+                    <button class="btn btn-secondary btn-sm" @click="fetchVersions" :disabled="isLoadingVersions" title="Recargar">
+                      <i class="fa-solid fa-rotate" :class="{ 'fa-spin': isLoadingVersions }"></i>
+                    </button>
+                  </div>
                 </div>
 
                 <div v-if="isLoadingVersions" class="state-container">
@@ -271,12 +280,18 @@
                     v-for="(ver, index) in versions" 
                     :key="ver.id" 
                     class="version-card shadow-sm"
-                    :class="{ 'is-current-version': index === 0, 'is-active-version': selectedVersionId === ver.id }"
+                    :class="{ 
+                      'is-current-version': ver.status === 'approved' && ver.version === document.version, 
+                      'is-active-version': selectedVersionId === ver.id 
+                    }"
                   >
                     <div class="version-left">
                       <div class="version-badge-box">
                         <span class="v-number">v{{ ver.version }}</span>
-                        <span v-if="index === 0" class="v-tag-current">Vigente</span>
+                        <span v-if="ver.status === 'approved' && ver.version === document.version" class="v-tag-current">Vigente</span>
+                        <span v-else :class="['status-pill', getStatusClass(ver.status)]">
+                          <i :class="getStatusIcon(ver.status)"></i> {{ getStatusLabel(ver.status) }}
+                        </span>
                       </div>
                       <div class="version-details">
                         <div class="version-filename font-mono">
@@ -294,12 +309,32 @@
                     </div>
 
                     <div class="version-actions">
+                      <!-- Acciones de aprobación rápida para administradores en versiones pendientes -->
+                      <template v-if="ver.status === 'pending' && canApprove">
+                        <button 
+                          class="btn btn-approve btn-xs" 
+                          title="Aprobar esta versión como vigente"
+                          @click="updateVersionStatus(ver, 'approved')"
+                          :disabled="isUpdatingStatus"
+                        >
+                          <i class="fa-solid fa-check"></i> Aprobar
+                        </button>
+                        <button 
+                          class="btn btn-reject btn-xs" 
+                          title="Rechazar esta propuesta"
+                          @click="updateVersionStatus(ver, 'rejected')"
+                          :disabled="isUpdatingStatus"
+                        >
+                          <i class="fa-solid fa-xmark"></i> Rechazar
+                        </button>
+                      </template>
+
                       <button 
                         class="btn btn-secondary btn-xs" 
                         title="Ver esta versión en el visor"
                         @click="viewHistoricalVersion(ver)"
                       >
-                        <i class="fa-regular fa-eye"></i> Ver versión
+                        <i class="fa-regular fa-eye"></i> Ver
                       </button>
                       <button 
                         v-if="canDownload"
@@ -336,6 +371,82 @@
                 </button>
               </div>
             </div>
+
+            <!-- Modal para Proponer / Subir Nueva Versión -->
+            <div v-if="showNewVersionModal" class="version-modal-backdrop" @click="showNewVersionModal = false">
+              <div class="version-modal-card shadow-lg" @click.stop>
+                <div class="modal-header">
+                  <h4 class="modal-title">
+                    <i class="fa-solid fa-code-branch text-primary"></i> 
+                    Sugerir Nueva Versión de Documento
+                  </h4>
+                  <button class="icon-btn" @click="showNewVersionModal = false"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+
+                <form @submit.prevent="submitNewVersion" class="modal-body">
+                  <div class="form-group">
+                    <label class="form-label">Documento base:</label>
+                    <div class="doc-reference-box">
+                      <span class="font-mono text-primary font-bold">{{ document.id }}</span> - {{ document.title }}
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Número de Versión Propuesto:</label>
+                    <input 
+                      type="text" 
+                      v-model="newVersionForm.versionNumber" 
+                      class="form-input font-mono" 
+                      placeholder="Ej. 1.1 o 2.0" 
+                      required 
+                    />
+                    <span class="form-hint">Versión actual vigente: v{{ document.version }}</span>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label">Archivo de la Nueva Versión (.pdf, .docx, .xlsx):</label>
+                    <div class="file-upload-box" @click="triggerVersionFileInput" :class="{ 'has-file': newVersionForm.file }">
+                      <input 
+                        type="file" 
+                        ref="versionFileInput" 
+                        class="hidden-file-input" 
+                        accept=".pdf,.doc,.docx,.xls,.xlsx"
+                        @change="handleVersionFileSelect"
+                        required
+                      />
+                      <div v-if="!newVersionForm.file" class="file-upload-placeholder">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <p>Haz clic para seleccionar el archivo actualizado</p>
+                      </div>
+                      <div v-else class="file-selected">
+                        <i class="fa-solid fa-file-check text-primary"></i>
+                        <div class="file-info">
+                          <span class="file-name">{{ newVersionForm.file.name }}</span>
+                          <span class="file-size">{{ (newVersionForm.file.size / (1024 * 1024)).toFixed(2) }} MB</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="modal-notice">
+                    <i class="fa-solid fa-circle-info text-primary"></i>
+                    <span>Esta nueva versión quedará registrada en estado <strong>Pendiente</strong> y requerirá la validación del SGC antes de convertirse en la versión oficial vigente.</span>
+                  </div>
+
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary btn-sm" @click="showNewVersionModal = false" :disabled="isSubmittingVersion">
+                      Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-sm" :disabled="isSubmittingVersion">
+                      <i v-if="isSubmittingVersion" class="fa-solid fa-circle-notch fa-spin"></i>
+                      <i v-else class="fa-solid fa-upload"></i>
+                      Enviar Propuesta
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
           </div>
         </transition>
       </div>
@@ -379,6 +490,15 @@ const isLoadingVersions = ref(false);
 const selectedVersionId = ref(null);
 const activeVersionNumber = ref(null);
 
+// Modal para nueva versión
+const showNewVersionModal = ref(false);
+const isSubmittingVersion = ref(false);
+const versionFileInput = ref(null);
+const newVersionForm = ref({
+  versionNumber: '',
+  file: null
+});
+
 // Permisos
 const canApprove = computed(() => {
   return authStore.hasPermission('documents:approve') || authStore.user?.role === 'admin_sgc';
@@ -386,6 +506,10 @@ const canApprove = computed(() => {
 
 const canDownload = computed(() => {
   return authStore.hasPermission('documents:download') || authStore.user?.role === 'admin_sgc';
+});
+
+const canCreateVersion = computed(() => {
+  return authStore.hasPermission('documents:create_version') || authStore.user?.role === 'admin_sgc' || authStore.user?.role === 'leader';
 });
 
 watch(() => [props.isOpen, props.document?.db_id], ([open, docId]) => {
@@ -466,7 +590,7 @@ function viewHistoricalVersion(ver) {
   activeVersionNumber.value = ver.version;
   currentTab.value = 'reader';
   loadFile(`/documents/versions/${ver.id}/file`);
-  showToast.info(`Visualizando versión histórica v${ver.version}`);
+  showToast.info(`Visualizando versión v${ver.version}`);
 }
 
 async function downloadHistoricalVersion(ver) {
@@ -499,12 +623,98 @@ async function updateDocumentStatus(newStatus) {
     if (res.data.success) {
       showToast.success(res.data.message || 'Estado actualizado exitosamente');
       emit('status-updated', { docId: props.document.db_id, status: newStatus });
+      await fetchVersions();
     }
   } catch (error) {
     console.error('Error al actualizar estado:', error);
     showToast.error(error.response?.data?.message || 'Error al actualizar el estado del documento');
   } finally {
     isUpdatingStatus.value = false;
+  }
+}
+
+async function updateVersionStatus(ver, newStatus) {
+  if (!props.document?.db_id || !ver?.id) return;
+  isUpdatingStatus.value = true;
+
+  try {
+    const res = await api.patch(`/documents/${props.document.db_id}/status`, {
+      status: newStatus,
+      versionId: ver.id
+    });
+
+    if (res.data.success) {
+      showToast.success(res.data.message || 'Versión actualizada');
+      emit('status-updated', { docId: props.document.db_id, status: res.data.document.status });
+      await fetchVersions();
+      if (newStatus === 'approved') {
+        activeVersionNumber.value = ver.version;
+      }
+    }
+  } catch (error) {
+    console.error('Error al actualizar estado de versión:', error);
+    showToast.error(error.response?.data?.message || 'Error al actualizar la versión');
+  } finally {
+    isUpdatingStatus.value = false;
+  }
+}
+
+// Lógica de subir nueva versión
+function openNewVersionModal() {
+  const curr = parseFloat(props.document.version) || 1.0;
+  newVersionForm.value = {
+    versionNumber: (curr + 0.1).toFixed(1),
+    file: null
+  };
+  showNewVersionModal.value = true;
+}
+
+function triggerVersionFileInput() {
+  if (versionFileInput.value) {
+    versionFileInput.value.click();
+  }
+}
+
+function handleVersionFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const validExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+  const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+  if (!validExtensions.includes(ext)) {
+    alert('Tipo de archivo no válido. Se permiten: .pdf, .doc, .docx, .xls, .xlsx');
+    event.target.value = '';
+    return;
+  }
+  newVersionForm.value.file = file;
+}
+
+async function submitNewVersion() {
+  if (!newVersionForm.value.file) {
+    showToast.error('Debes seleccionar un archivo para la nueva versión');
+    return;
+  }
+
+  isSubmittingVersion.value = true;
+  const formData = new FormData();
+  formData.append('versionNumber', newVersionForm.value.versionNumber);
+  formData.append('file', newVersionForm.value.file);
+
+  try {
+    const res = await api.post(`/documents/${props.document.db_id}/versions`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+
+    if (res.data.success) {
+      showToast.success(res.data.message || 'Propuesta de versión enviada');
+      showNewVersionModal.value = false;
+      await fetchVersions();
+    }
+  } catch (err) {
+    console.error('Error al subir nueva versión:', err);
+    showToast.error(err.response?.data?.message || 'Error al enviar la nueva versión');
+  } finally {
+    isSubmittingVersion.value = false;
   }
 }
 
@@ -623,7 +833,7 @@ function getStatusLabel(status) {
 
 /* Drawer Container */
 .viewer-drawer {
-  width: 740px;
+  width: 760px;
   max-width: 95vw;
   height: 100vh;
   background: #ffffff;
@@ -1052,6 +1262,12 @@ function getStatusLabel(status) {
   margin-bottom: 8px;
 }
 
+.header-btns {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .versions-title {
   margin: 0;
   font-size: 15px;
@@ -1356,6 +1572,179 @@ function getStatusLabel(status) {
   align-items: center;
   gap: 10px;
   text-align: left;
+}
+
+/* Version Modal Card Inside Drawer */
+.version-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.version-modal-card {
+  width: 100%;
+  max-width: 480px;
+  background: #ffffff;
+  border-radius: var(--radius-xl, 16px);
+  padding: 24px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.doc-reference-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.form-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-size: 13px;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.15);
+}
+
+.form-hint {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.file-upload-box {
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  background: #f8fafc;
+  transition: all 0.2s;
+}
+
+.file-upload-box:hover {
+  border-color: var(--primary);
+  background: #f1f5f9;
+}
+
+.file-upload-box.has-file {
+  border-style: solid;
+  border-color: #16a34a;
+  background: rgba(22, 163, 74, 0.05);
+}
+
+.hidden-file-input {
+  display: none;
+}
+
+.file-upload-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.file-upload-placeholder i {
+  font-size: 24px;
+  color: var(--primary);
+}
+
+.file-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.file-selected i {
+  font-size: 24px;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.file-size {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.modal-notice {
+  background: #eff6ff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: #1e40af;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  line-height: 1.4;
+}
+
+.modal-notice i {
+  margin-top: 2px;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
 }
 
 /* Footer */

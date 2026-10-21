@@ -10,23 +10,13 @@ import { pool } from '../config/db.js';
 const router = express.Router();
 const upload = multer({ dest: 'src/storage/temp/' });
 
-// Mock System Stats Data
-const statsData = {
-  totalDocuments: 148,
-  pendingReviews: 12,
-  approvedDocuments: 124,
-  qualityComplianceRate: '98.5%',
-  activeAudits: 3,
-  activeUsers: 24
-};
-
 /**
  * GET /api/documents
  */
 router.get('/documents', authenticateToken, async (req, res) => {
   try {
     const { categoryId, departmentId } = req.query;
-    
+
     let query = `
       SELECT 
         d.id as db_id,
@@ -75,7 +65,7 @@ router.get('/documents', authenticateToken, async (req, res) => {
     query += ` ORDER BY d.created_at DESC`;
 
     const { rows } = await pool.query(query, params);
-    
+
     const formattedRows = rows.map(row => {
       let ext = 'PDF';
       if (row.file_name) {
@@ -109,7 +99,7 @@ router.get('/documents', authenticateToken, async (req, res) => {
 /**
  * POST /api/documents
  */
-router.post('/documents', authenticateToken, upload.single('file'), async (req, res) => {
+router.post('/documents', authenticateToken, requirePermission('documents:create'), upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ success: false, message: 'Archivo requerido' });
   }
@@ -124,10 +114,10 @@ router.post('/documents', authenticateToken, upload.single('file'), async (req, 
     // 1. Get department and category names
     let departmentName = 'Global';
     if (departmentId && departmentId !== 'global' && departmentId !== 'null') {
-       const deptRes = await client.query('SELECT title FROM qms.departments WHERE id = $1', [departmentId]);
-       if (deptRes.rows.length) departmentName = deptRes.rows[0].title;
+      const deptRes = await client.query('SELECT title FROM qms.departments WHERE id = $1', [departmentId]);
+      if (deptRes.rows.length) departmentName = deptRes.rows[0].title;
     }
-    
+
     let categoryName = 'General';
     if (categoryId) {
       const catRes = await client.query('SELECT name FROM qms.categories WHERE id = $1', [categoryId]);
@@ -152,29 +142,29 @@ router.post('/documents', authenticateToken, upload.single('file'), async (req, 
 
     // 3. Move file
     const timestamp = Date.now();
-    
+
     // Sanitize names for paths
     const safeDept = departmentName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
     const safeCat = categoryName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-    
+
     const relativePath = `${safeDept}/${safeCat}/uploaded_docs/${userId}/${timestamp}`;
     const targetDir = path.join(process.cwd(), 'src', 'storage', relativePath);
-    
+
     await fs.promises.mkdir(targetDir, { recursive: true });
-    
+
     const originalExt = path.extname(req.file.originalname);
     const finalFileName = `${code || 'doc'}_v1.0${originalExt}`;
     const finalPath = path.join(targetDir, finalFileName);
-    
+
     await fs.promises.rename(req.file.path, finalPath);
-    
+
     const savedPath = `${relativePath}/${finalFileName}`; // stored without "storage/" prefix
     const fileSizeMb = (req.file.size / (1024 * 1024)).toFixed(2);
-    
+
     // 4. Insert Document Version
     const verQuery = `
-      INSERT INTO qms.documents_versions (document_id, version_number, file_path, file_name, mime_type, file_size_mb, created_at, uploaded_by)
-      VALUES ($1, '1.0', $2, $3, $4, $5, NOW(), $6)
+      INSERT INTO qms.documents_versions (document_id, version_number, file_path, file_name, mime_type, file_size_mb, status, created_at, uploaded_by)
+      VALUES ($1, '1.0', $2, $3, $4, $5, 'pending', NOW(), $6)
     `;
     await client.query(verQuery, [newDocId, savedPath, req.file.originalname, req.file.mimetype, fileSizeMb, userId]);
 
@@ -234,35 +224,180 @@ router.get('/documents/:id/file', authenticateToken, async (req, res) => {
  * Actualizar estado del documento (Aprobado, Rechazado, Pendiente, Obsoleto)
  */
 router.patch('/documents/:id/status', authenticateToken, requirePermission('documents:approve'), async (req, res) => {
+  const client = await pool.connect();
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, versionId } = req.body;
     const validStatuses = ['approved', 'pending', 'rejected', 'obsolete'];
 
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ success: false, message: 'Estado no válido' });
     }
 
-    const updateRes = await pool.query(
-      `UPDATE qms.documents 
-       SET status = $1 
-       WHERE id = $2 
-       RETURNING id, name, code, status`,
-      [status, id]
-    );
+    await client.query('BEGIN');
 
-    if (updateRes.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Documento no encontrado' });
+    let targetVersionId = versionId;
+    if (!targetVersionId) {
+      const latestVer = await client.query(
+        'SELECT id, version_number FROM qms.documents_versions WHERE document_id = $1 ORDER BY created_at DESC LIMIT 1',
+        [id]
+      );
+      if (latestVer.rows.length) targetVersionId = latestVer.rows[0].id;
     }
+
+    if (targetVersionId) {
+      // 1. Actualizar el status de la versión
+      const verUpdate = await client.query(
+        'UPDATE qms.documents_versions SET status = $1 WHERE id = $2 RETURNING version_number',
+        [status, targetVersionId]
+      );
+
+      // Si se aprueba esta versión, las versiones anteriores aprobadas pasan a obsoletas
+      if (status === 'approved') {
+        await client.query(
+          "UPDATE qms.documents_versions SET status = 'obsolete' WHERE document_id = $1 AND id != $2 AND status = 'approved'",
+          [id, targetVersionId]
+        );
+        if (verUpdate.rows.length) {
+          await client.query(
+            "UPDATE qms.documents SET current_version = $1, status = 'approved' WHERE id = $2",
+            [verUpdate.rows[0].version_number, id]
+          );
+        }
+      } else if (status === 'rejected') {
+        const prevApproved = await client.query(
+          "SELECT version_number FROM qms.documents_versions WHERE document_id = $1 AND status = 'approved' ORDER BY created_at DESC LIMIT 1",
+          [id]
+        );
+        if (prevApproved.rows.length) {
+          await client.query(
+            "UPDATE qms.documents SET current_version = $1, status = 'approved' WHERE id = $2",
+            [prevApproved.rows[0].version_number, id]
+          );
+        } else {
+          await client.query(
+            "UPDATE qms.documents SET status = 'rejected' WHERE id = $1",
+            [id]
+          );
+        }
+      } else {
+        await client.query('UPDATE qms.documents SET status = $1 WHERE id = $2', [status, id]);
+      }
+    } else {
+      await client.query('UPDATE qms.documents SET status = $1 WHERE id = $2', [status, id]);
+    }
+
+    await client.query('COMMIT');
+
+    const docRes = await pool.query('SELECT id, name, code, status, current_version FROM qms.documents WHERE id = $1', [id]);
 
     res.json({
       success: true,
       message: `Documento ${status === 'approved' ? 'aprobado' : status === 'rejected' ? 'rechazado' : 'actualizado'} exitosamente`,
-      document: updateRes.rows[0]
+      document: docRes.rows[0]
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error al actualizar estado del documento:', error);
     res.status(500).json({ success: false, message: 'Error interno al actualizar estado' });
+  } finally {
+    client.release();
+  }
+});
+
+/**
+ * POST /api/documents/:id/versions
+ * Subir una nueva versión de un documento existente (Operadores o Administradores)
+ */
+router.post('/documents/:id/versions', authenticateToken, requirePermission('documents:create_version'), upload.single('file'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'Archivo requerido para la nueva versión' });
+  }
+
+  const { id } = req.params;
+  const { versionNumber } = req.body;
+  const userId = req.user.id;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Obtener documento base y nombres
+    const docRes = await client.query(`
+      SELECT d.id, d.name, d.code, d.current_version, d.id_category, d.id_department,
+             c.name as category_name, dept.title as department_name
+      FROM qms.documents d
+      LEFT JOIN qms.categories c ON d.id_category = c.id
+      LEFT JOIN qms.departments dept ON d.id_department = dept.id
+      WHERE d.id = $1
+    `, [id]);
+
+    if (docRes.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Documento no encontrado' });
+    }
+
+    const doc = docRes.rows[0];
+
+    // 2. Determinar número de versión
+    let newVersion = versionNumber;
+    if (!newVersion) {
+      const currentVerNum = parseFloat(doc.current_version) || 1.0;
+      newVersion = (currentVerNum + 0.1).toFixed(1);
+    }
+
+    // Validar que no exista ya ese número de versión para este documento
+    const existVer = await client.query(
+      'SELECT id FROM qms.documents_versions WHERE document_id = $1 AND version_number = $2',
+      [id, newVersion]
+    );
+    if (existVer.rows.length > 0) {
+      return res.status(400).json({ success: false, message: `La versión ${newVersion} ya existe para este documento` });
+    }
+
+    // 3. Mover archivo a disco
+    const deptName = doc.department_name || 'Global';
+    const catName = doc.category_name || 'General';
+    const safeDept = deptName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const safeCat = catName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    const timestamp = Date.now();
+
+    const relativePath = `${safeDept}/${safeCat}/uploaded_docs/${userId}/${timestamp}`;
+    const targetDir = path.join(process.cwd(), 'src', 'storage', relativePath);
+    await fs.promises.mkdir(targetDir, { recursive: true });
+
+    const originalExt = path.extname(req.file.originalname);
+    const finalFileName = `${doc.code || 'doc'}_v${newVersion}${originalExt}`;
+    const finalPath = path.join(targetDir, finalFileName);
+
+    await fs.promises.rename(req.file.path, finalPath);
+
+    const savedPath = `${relativePath}/${finalFileName}`;
+    const fileSizeMb = (req.file.size / (1024 * 1024)).toFixed(2);
+
+    // 4. Insertar en documents_versions con status = 'pending'
+    const verQuery = `
+      INSERT INTO qms.documents_versions (document_id, version_number, file_path, file_name, mime_type, file_size_mb, status, created_at, uploaded_by)
+      VALUES ($1, $2, $3, $4, $5, $6, 'pending', NOW(), $7)
+      RETURNING id, version_number, status
+    `;
+    const verRes = await client.query(verQuery, [id, newVersion, savedPath, req.file.originalname, req.file.mimetype, fileSizeMb, userId]);
+
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: `Propuesta de versión v${newVersion} enviada a revisión exitosamente.`,
+      version: verRes.rows[0]
+    });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error al subir nueva versión:', err);
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ success: false, message: 'Error al subir la nueva versión' });
+  } finally {
+    client.release();
   }
 });
 
@@ -281,6 +416,7 @@ router.get('/documents/:id/versions', authenticateToken, async (req, res) => {
          dv.file_name,
          dv.mime_type,
          dv.file_size_mb,
+         dv.status,
          dv.created_at as "createdAt",
          dv.uploaded_by,
          u.full_name as author
@@ -373,16 +509,6 @@ router.get('/documents/:id/download', authenticateToken, requirePermission('docu
     console.error('Error al descargar archivo del documento:', error);
     res.status(500).json({ success: false, message: 'Error interno al descargar el archivo' });
   }
-});
-
-/**
- * GET /api/stats
- */
-router.get('/stats', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    stats: statsData
-  });
 });
 
 export default router;
